@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { useTranscript } from "@/app/contexts/TranscriptContext";
 import { useEvent } from "@/app/contexts/EventContext";
+import { filterTranscriptText, getLanguageInfo } from "@/app/lib/languageFilter";
 
 export function useHandleSessionHistory() {
   const {
@@ -20,7 +21,7 @@ export function useHandleSessionHistory() {
   const extractMessageText = (content: any[] = []): string => {
     if (!Array.isArray(content)) return "";
 
-    return content
+    const rawText = content
       .map((c) => {
         if (!c || typeof c !== "object") return "";
         if (c.type === "input_text") return c.text ?? "";
@@ -29,6 +30,9 @@ export function useHandleSessionHistory() {
       })
       .filter(Boolean)
       .join("\n");
+
+    // Apply language filtering to ensure only English, Hindi, and Kannada appear
+    return filterTranscriptText(rawText);
   };
 
   const extractFunctionCallByName = (name: string, content: any[] = []): any => {
@@ -92,7 +96,7 @@ export function useHandleSessionHistory() {
     const { itemId, role, content = [] } = item;
     if (itemId && role) {
       const isUser = role === "user";
-      let text = extractMessageText(content);
+      let text = extractMessageText(content); // This already applies language filtering
 
       if (isUser && !text) {
         text = "[Transcribing...]";
@@ -117,7 +121,7 @@ export function useHandleSessionHistory() {
 
       const { itemId, content = [] } = item;
 
-      const text = extractMessageText(content);
+      const text = extractMessageText(content); // This already applies language filtering
 
       if (text) {
         updateTranscriptMessage(itemId, text, false);
@@ -127,7 +131,9 @@ export function useHandleSessionHistory() {
 
   function handleTranscriptionDelta(item: any) {
     const itemId = item.item_id;
-    const deltaText = item.delta || "";
+    const rawDeltaText = item.delta || "";
+    // Apply language filtering to delta text
+    const deltaText = filterTranscriptText(rawDeltaText);
     if (itemId) {
       updateTranscriptMessage(itemId, deltaText, true);
     }
@@ -137,10 +143,13 @@ export function useHandleSessionHistory() {
     // History updates don't reliably end in a completed item, 
     // so we need to handle finishing up when the transcription is completed.
     const itemId = item.item_id;
-    const finalTranscript =
-        !item.transcript || item.transcript === "\n"
+    const rawTranscript = item.transcript;
+    
+    // Apply language filtering and handle special cases
+    const finalTranscript = !rawTranscript || rawTranscript === "\n"
         ? "[inaudible]"
-        : item.transcript;
+        : filterTranscriptText(rawTranscript);
+    
     if (itemId) {
       updateTranscriptMessage(itemId, finalTranscript, false);
       // Use the ref to get the latest transcriptItems
@@ -155,6 +164,16 @@ export function useHandleSessionHistory() {
             category: 'NONE',
             rationale: '',
           },
+        });
+      }
+      
+      // Log language filtering info for debugging
+      if (rawTranscript && rawTranscript !== finalTranscript) {
+        const langInfo = getLanguageInfo(rawTranscript);
+        console.log('[Language Filter]', {
+          original: rawTranscript,
+          filtered: finalTranscript,
+          ...langInfo
         });
       }
     }

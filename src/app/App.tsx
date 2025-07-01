@@ -24,8 +24,10 @@ import { createModerationGuardrail } from "@/app/agentConfigs/guardrails";
 import { allAgentSets, defaultAgentSetKey } from "@/app/agentConfigs";
 import { customerServiceRetailScenario } from "@/app/agentConfigs/customerServiceRetail";
 import { chatSupervisorScenario } from "@/app/agentConfigs/chatSupervisor";
+import { healthcareScenario } from "@/app/agentConfigs/healthcare";
 import { customerServiceRetailCompanyName } from "@/app/agentConfigs/customerServiceRetail";
 import { chatSupervisorCompanyName } from "@/app/agentConfigs/chatSupervisor";
+import { healthcareCompanyName } from "@/app/agentConfigs/healthcare";
 import { simpleHandoffScenario } from "@/app/agentConfigs/simpleHandoff";
 
 // Map used by connect logic for scenarios defined via the SDK.
@@ -33,6 +35,7 @@ const sdkScenarioMap: Record<string, RealtimeAgent[]> = {
   simpleHandoff: simpleHandoffScenario,
   customerServiceRetail: customerServiceRetailScenario,
   chatSupervisor: chatSupervisorScenario,
+  healthcare: healthcareScenario,
 };
 
 import useAudioDownload from "./hooks/useAudioDownload";
@@ -212,9 +215,11 @@ function App() {
           reorderedAgents.unshift(agent);
         }
 
-        const companyName = agentSetKey === 'customerServiceRetail'
-          ? customerServiceRetailCompanyName
-          : chatSupervisorCompanyName;
+              const companyName = agentSetKey === 'customerServiceRetail'
+        ? customerServiceRetailCompanyName
+        : agentSetKey === 'healthcare'
+        ? healthcareCompanyName
+        : chatSupervisorCompanyName;
         const guardrail = createModerationGuardrail(companyName);
 
         await connect({
@@ -441,15 +446,15 @@ function App() {
         >
           <div>
             <Image
-              src="/openai-logomark.svg"
-              alt="OpenAI Logo"
-              width={20}
-              height={20}
+              src="/rxone_color - 850.png"
+              alt="rxone logo"
+              width={48}
+              height={48}
               className="mr-2"
             />
           </div>
           <div>
-            Realtime API <span className="text-gray-500">Agents</span>
+            VoiceAgent <span className="text-gray-500">2.0</span>
           </div>
         </div>
         <div className="flex items-center">

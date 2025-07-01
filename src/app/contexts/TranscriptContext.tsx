@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { TranscriptItem } from "@/app/types";
+import { filterTranscriptText } from "@/app/lib/languageFilter";
 
 type TranscriptContextValue = {
   transcriptItems: TranscriptItem[];
@@ -48,11 +49,14 @@ export const TranscriptProvider: FC<PropsWithChildren> = ({ children }) => {
         return prev;
       }
 
+      // Apply language filtering as secondary protection
+      const filteredText = text ? filterTranscriptText(text) : text;
+
       const newItem: TranscriptItem = {
         itemId,
         type: "MESSAGE",
         role,
-        title: text,
+        title: filteredText,
         expanded: false,
         timestamp: newTimestampPretty(),
         createdAtMs: Date.now(),
@@ -68,9 +72,12 @@ export const TranscriptProvider: FC<PropsWithChildren> = ({ children }) => {
     setTranscriptItems((prev) =>
       prev.map((item) => {
         if (item.itemId === itemId && item.type === "MESSAGE") {
+          // Apply language filtering to new text
+          const filteredNewText = filterTranscriptText(newText);
+          
           return {
             ...item,
-            title: append ? (item.title ?? "") + newText : newText,
+            title: append ? (item.title ?? "") + filteredNewText : filteredNewText,
           };
         }
         return item;
