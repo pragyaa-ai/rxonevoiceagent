@@ -125,7 +125,7 @@ function BottomToolbar({
           className="w-4 h-4"
         />
         <label htmlFor="logs" className="flex items-center cursor-pointer">
-          Logs
+          Agent View
         </label>
       </div>
 

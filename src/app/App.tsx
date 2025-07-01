@@ -7,7 +7,7 @@ import Image from "next/image";
 
 // UI components
 import Transcript from "./components/Transcript";
-import Events from "./components/Events";
+import AgentVisualizer from "./components/AgentVisualizer";
 import BottomToolbar from "./components/BottomToolbar";
 
 // Types
@@ -531,7 +531,12 @@ function App() {
           }
         />
 
-        <Events isExpanded={isEventsPaneExpanded} />
+        <AgentVisualizer 
+          isExpanded={isEventsPaneExpanded} 
+          selectedAgentName={selectedAgentName}
+          selectedAgentConfigSet={selectedAgentConfigSet}
+          agentSetKey={searchParams.get("agentConfig") || defaultAgentSetKey}
+        />
       </div>
 
       <BottomToolbar

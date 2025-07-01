@@ -20,3 +20,24 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
+
+/* Hide Next.js development indicators and overlays */
+div[data-nextjs-dialog-overlay],
+div[data-nextjs-toast],
+div[style*="position: fixed"][style*="z-index: 9999"],
+div[style*="position: fixed"][style*="bottom: 16px"][style*="left: 16px"],
+div[style*="position: fixed"][style*="bottom: 30px"][style*="left: 30px"],
+#__next-build-watcher,
+[data-nextjs-scroll-focus-boundary],
+/* Hide any circular button in bottom left */
+div[style*="position: fixed"][style*="width: 40px"][style*="height: 40px"],
+div[style*="position: fixed"][style*="border-radius: 50%"] {
+  display: none !important;
+}
+
+/* Additional hiding for development overlays */
+div[class*="__nextjs__container__overlay"],
+div[id*="__next"],
+div[data-overlay-container] {
+  display: none !important;
+}
