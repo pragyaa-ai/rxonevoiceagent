@@ -15,23 +15,13 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: 'Phone number is required' }, { status: 400 });
     }
     
-    console.log(`[Ozonetel Call Proxy] Initiating call to: ${phoneNumber}`);
+    console.log(`[Ozonetel Call Proxy] Initiating call to: ${phoneNumber} (Local Healthcare Agent)`);
     
     // Clean phone number for Ozonetel API
     const phoneNoClean = phoneNumber.replace('+', '').replace('-', '');
     
-    // Get the base URL from request headers
-    const host = req.headers.get('host');
-    const protocol = req.headers.get('x-forwarded-proto') || 'http';
-    const baseUrl = host?.includes('localhost') 
-      ? 'https://89e6-42-108-29-241.ngrok-free.app'  // Use ngrok for localhost
-      : `${protocol}://${host}`;
-    
-    // Build Ozonetel API URL with url parameter
-    const xmlUrl = `${baseUrl}/api/getXML_dvcom_in_en`;
-    const callbackUrl = `${baseUrl}/api/telephony/ozonetel/webhook`;
-    
-    const ozonetelUrl = `https://in1-cpaas.ozonetel.com/outbound/outbound.php?phone_no=${phoneNoClean}&api_key=KK11001341678ccf2d10f850135f15c809&outbound_version=1&url=${encodeURIComponent(xmlUrl)}&callback_url=${encodeURIComponent(callbackUrl)}`;
+    // Use the local ngrok URLs for Healthcare agent
+    const ozonetelUrl = `http://in1-cpaas.ozonetel.com/outbound/outbound.php?phone_no=${phoneNoClean}&api_key=KK11001341678ccf2d10f850135f15c809&outbound_version=2&url=https://89e6-42-108-29-241.ngrok-free.app/api/getXML_dvcom_in_en&callback_url=https://89e6-42-108-29-241.ngrok-free.app/api/telephony/ozonetel/webhook`;
     
     console.log(`[Ozonetel Call Proxy] Calling: ${ozonetelUrl}`);
     
