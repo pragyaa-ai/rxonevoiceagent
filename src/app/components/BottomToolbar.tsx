@@ -1,5 +1,6 @@
 import React from "react";
-import { SessionStatus } from "@/app/types";
+import { SessionStatus, TelephonyProvider } from "@/app/types";
+import { TELEPHONY_PROVIDERS } from "@/app/lib/telephonyProviders";
 
 interface BottomToolbarProps {
   sessionStatus: SessionStatus;
@@ -15,6 +16,12 @@ interface BottomToolbarProps {
   setIsAudioPlaybackEnabled: (val: boolean) => void;
   codec: string;
   onCodecChange: (newCodec: string) => void;
+  transport: string;
+  onTransportChange: (newTransport: string) => void;
+  telephonyProvider: TelephonyProvider;
+  onTelephonyProviderChange: (provider: TelephonyProvider) => void;
+  onShowTelephonyConfig: () => void;
+  onShowTestCall: () => void;
 }
 
 function BottomToolbar({
@@ -31,6 +38,12 @@ function BottomToolbar({
   setIsAudioPlaybackEnabled,
   codec,
   onCodecChange,
+  transport,
+  onTransportChange,
+  telephonyProvider,
+  onTelephonyProviderChange,
+  onShowTelephonyConfig,
+  onShowTestCall,
 }: BottomToolbarProps) {
   const isConnected = sessionStatus === "CONNECTED";
   const isConnecting = sessionStatus === "CONNECTING";
@@ -38,6 +51,16 @@ function BottomToolbar({
   const handleCodecChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newCodec = e.target.value;
     onCodecChange(newCodec);
+  };
+
+  const handleTransportChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newTransport = e.target.value;
+    onTransportChange(newTransport);
+  };
+
+  const handleTelephonyProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newProvider = e.target.value as TelephonyProvider;
+    onTelephonyProviderChange(newProvider);
   };
 
   function getConnectionButtonLabel() {
@@ -150,6 +173,65 @@ function BottomToolbar({
           <option value="pcma">PCMA (8 kHz)</option>
         </select>
       </div>
+
+             <div className="flex flex-row items-center gap-2">
+         <div>Transport:</div>
+         {/*
+           Transport selector - Allows switching between WebRTC (browser-optimized)
+           and WebSocket (server-friendly) transports for OpenAI Realtime API.
+           WebSocket is useful for telephony integration and server-side healthcare systems.
+         */}
+         <select
+           id="transport-select"
+           value={transport}
+           onChange={handleTransportChange}
+           className="border border-gray-300 rounded-md px-2 py-1 focus:outline-none cursor-pointer"
+         >
+           <option value="webrtc">WebRTC (Default)</option>
+           <option value="websocket">WebSocket (Telephony)</option>
+         </select>
+       </div>
+
+       <div className="flex flex-row items-center gap-2">
+         <div>Telephony:</div>
+         {/*
+           Telephony Provider selector - Choose between different telephony providers
+           for healthcare voice agent integration. Each provider has specific capabilities
+           and integration patterns for real-world call handling.
+         */}
+         <select
+           id="telephony-provider-select"
+           value={telephonyProvider}
+           onChange={handleTelephonyProviderChange}
+           className="border border-gray-300 rounded-md px-2 py-1 focus:outline-none cursor-pointer min-w-[140px]"
+         >
+           {Object.entries(TELEPHONY_PROVIDERS).map(([key, provider]) => (
+             <option key={key} value={key}>
+               {provider.icon} {provider.name}
+             </option>
+           ))}
+         </select>
+         
+         {telephonyProvider !== 'none' && (
+           <button
+             onClick={onShowTelephonyConfig}
+             className={`ml-2 px-3 py-1 rounded-md text-white text-sm ${TELEPHONY_PROVIDERS[telephonyProvider].color} hover:opacity-90`}
+             title={`Configure ${TELEPHONY_PROVIDERS[telephonyProvider].name}`}
+           >
+             ⚙️ Config
+           </button>
+         )}
+         
+         {telephonyProvider !== 'none' && (
+           <button
+             onClick={onShowTestCall}
+             className="ml-2 px-3 py-1 rounded-md bg-orange-600 hover:bg-orange-700 text-white text-sm"
+             title="Test outbound call functionality"
+           >
+             🧪 Test Call
+           </button>
+         )}
+       </div>
     </div>
   );
 }

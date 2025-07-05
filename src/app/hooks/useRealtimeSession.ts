@@ -2,13 +2,13 @@ import { useCallback, useRef, useState, useEffect } from 'react';
 import {
   RealtimeSession,
   RealtimeAgent,
-  OpenAIRealtimeWebRTC,
 } from '@openai/agents/realtime';
 
 import { audioFormatForCodec, applyCodecPreferences } from '../lib/codecUtils';
 import { useEvent } from '../contexts/EventContext';
 import { useHandleSessionHistory } from './useHandleSessionHistory';
-import { SessionStatus } from '../types';
+import { SessionStatus, TransportConfig } from '../types';
+import { createRealtimeTransport } from '../lib/transportUtils';
 
 export interface RealtimeSessionCallbacks {
   onConnectionChange?: (status: SessionStatus) => void;
@@ -21,6 +21,7 @@ export interface ConnectOptions {
   audioElement?: HTMLAudioElement;
   extraContext?: Record<string, any>;
   outputGuardrails?: any[];
+  transportConfig?: TransportConfig;
 }
 
 export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
@@ -85,6 +86,14 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
     callbacks.onAgentHandoff?.(agentName);
   };
 
+  // Transport factory function - creates the appropriate transport based on config
+  const createTransport = useCallback((
+    transportConfig: TransportConfig = { type: 'webrtc' },
+    audioElement?: HTMLAudioElement
+  ) => {
+    return createRealtimeTransport(transportConfig, audioElement, applyCodec);
+  }, [applyCodec]);
+
   useEffect(() => {
     if (sessionRef.current) {
       // Log server errors
@@ -115,6 +124,7 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
       audioElement,
       extraContext,
       outputGuardrails,
+      transportConfig = { type: 'webrtc' }, // Default to WebRTC for backward compatibility
     }: ConnectOptions) => {
       if (sessionRef.current) return; // already connected
 
@@ -128,15 +138,11 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
       const codecParam = codecParamRef.current;
       const audioFormat = audioFormatForCodec(codecParam);
 
+      // Create transport based on configuration
+      const transport = createTransport(transportConfig, audioElement);
+
       sessionRef.current = new RealtimeSession(rootAgent, {
-        transport: new OpenAIRealtimeWebRTC({
-          audioElement,
-          // Set preferred codec before offer creation
-          changePeerConnection: async (pc: RTCPeerConnection) => {
-            applyCodec(pc);
-            return pc;
-          },
-        }),
+        transport,
         model: 'gpt-4o-realtime-preview-2025-06-03',
         config: {
           inputAudioFormat: audioFormat,
@@ -152,7 +158,7 @@ export function useRealtimeSession(callbacks: RealtimeSessionCallbacks = {}) {
       await sessionRef.current.connect({ apiKey: ek });
       updateStatus('CONNECTED');
     },
-    [callbacks, updateStatus],
+    [callbacks, updateStatus, createTransport],
   );
 
   const disconnect = useCallback(() => {

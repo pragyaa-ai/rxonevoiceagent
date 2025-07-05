@@ -1,0 +1,17 @@
+{
+  "name": "ozonetel-websocket-test",
+  "version": "1.0.0",
+  "description": "WebSocket test client for Ozonetel DVCOM integration",
+  "main": "websocket-test-client.js",
+  "scripts": {
+    "test": "node websocket-test-client.js"
+  },
+  "dependencies": {
+    "ws": "^8.14.2",
+    "mic": "^2.1.2",
+    "speaker": "^0.5.4"
+  },
+  "keywords": ["websocket", "ozonetel", "telephony", "test"],
+  "author": "Test",
+  "license": "MIT"
+} 

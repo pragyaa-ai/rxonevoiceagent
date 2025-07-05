@@ -146,3 +146,65 @@ export const GuardrailOutputZod = z.object({
 });
 
 export type GuardrailOutput = z.infer<typeof GuardrailOutputZod>;
+
+export type TransportType = 'webrtc' | 'websocket';
+
+export interface TransportConfig {
+  type: TransportType;
+  webrtc?: {
+    codecPreferences?: string;
+    changePeerConnection?: (pc: RTCPeerConnection) => Promise<RTCPeerConnection>;
+  };
+  websocket?: {
+    url?: string;
+    headers?: Record<string, string>;
+  };
+}
+
+// Telephony Provider System
+export type TelephonyProvider = 'none' | 'ozonetel' | 'exotel' | 'plivo' | 'cell24x7';
+
+export interface TelephonyProviderConfig {
+  provider: TelephonyProvider;
+  enabled: boolean;
+  ozonetel?: {
+    websocketUrl: string;
+    apiKey?: string;
+    did?: string;
+    audioFormat: '8khz' | '16khz';
+  };
+  exotel?: {
+    apiKey: string;
+    apiToken: string;
+    subdomain: string;
+    did?: string;
+  };
+  plivo?: {
+    authId: string;
+    authToken: string;
+    phoneNumber?: string;
+  };
+  cell24x7?: {
+    apiKey: string;
+    username: string;
+    endpoint?: string;
+  };
+}
+
+export interface TelephonySession {
+  sessionId: string;
+  provider: TelephonyProvider;
+  ucid?: string; // Ozonetel specific
+  callId?: string; // Generic call identifier
+  startTime: number;
+  endTime?: number;
+  status: 'initiated' | 'connected' | 'completed' | 'failed';
+}
+
+export interface TelephonyEvent {
+  type: 'start' | 'media' | 'stop' | 'error';
+  sessionId: string;
+  provider: TelephonyProvider;
+  data?: any;
+  timestamp: number;
+}

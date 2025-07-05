@@ -9,9 +9,11 @@ import Image from "next/image";
 import Transcript from "./components/Transcript";
 import AgentVisualizer from "./components/AgentVisualizer";
 import BottomToolbar from "./components/BottomToolbar";
+import TelephonyConfig from "./components/TelephonyConfig";
+import OzonetelTestCall from "./components/OzonetelTestCall";
 
 // Types
-import { SessionStatus } from "@/app/types";
+import { SessionStatus, TelephonyProvider } from "@/app/types";
 import type { RealtimeAgent } from '@openai/agents/realtime';
 
 // Context providers & hooks
@@ -19,6 +21,7 @@ import { useTranscript } from "@/app/contexts/TranscriptContext";
 import { useEvent } from "@/app/contexts/EventContext";
 import { useRealtimeSession } from "./hooks/useRealtimeSession";
 import { createModerationGuardrail } from "@/app/agentConfigs/guardrails";
+import { getTransportConfigFromEnvironment } from "./lib/transportUtils";
 
 // Agent configs
 import { allAgentSets, defaultAgentSetKey } from "@/app/agentConfigs";
@@ -56,8 +59,11 @@ function App() {
   // ---------------------------------------------------------------------
   const urlCodec = searchParams.get("codec") || "opus";
 
-  // Agents SDK doesn't currently support codec selection so it is now forced 
-  // via global codecPatch at module load 
+  // Transport selector – allows switching between WebRTC and WebSocket
+  const urlTransport = searchParams.get("transport") || "webrtc";
+
+  // Telephony provider selector – allows choosing different telephony providers
+  const urlTelephonyProvider = (searchParams.get("telephonyProvider") || "none") as TelephonyProvider;
 
   const {
     addTranscriptMessage,
@@ -120,6 +126,12 @@ function App() {
       return stored ? stored === 'true' : true;
     },
   );
+
+  // Telephony configuration modal state
+  const [showTelephonyConfig, setShowTelephonyConfig] = useState<boolean>(false);
+  
+  // Test call modal state
+  const [showTestCall, setShowTestCall] = useState<boolean>(false);
 
   // Initialize the recording hook.
   const { startRecording, stopRecording, downloadRecording } =
@@ -222,11 +234,15 @@ function App() {
         : chatSupervisorCompanyName;
         const guardrail = createModerationGuardrail(companyName);
 
+        // Get transport configuration from URL parameters or environment
+        const transportConfig = getTransportConfigFromEnvironment();
+        
         await connect({
           getEphemeralKey: async () => EPHEMERAL_KEY,
           initialAgents: reorderedAgents,
           audioElement: sdkAudioElement,
           outputGuardrails: [guardrail],
+          transportConfig,
           extraContext: {
             addTranscriptBreadcrumb,
           },
@@ -352,6 +368,24 @@ function App() {
   const handleCodecChange = (newCodec: string) => {
     const url = new URL(window.location.toString());
     url.searchParams.set("codec", newCodec);
+    window.location.replace(url.toString());
+  };
+
+  // Transport change handler - refresh page to apply new transport
+  const handleTransportChange = (newTransport: string) => {
+    const url = new URL(window.location.toString());
+    url.searchParams.set("transport", newTransport);
+    window.location.replace(url.toString());
+  };
+
+  // Telephony provider change handler - update URL parameter
+  const handleTelephonyProviderChange = (newProvider: TelephonyProvider) => {
+    const url = new URL(window.location.toString());
+    if (newProvider === 'none') {
+      url.searchParams.delete("telephonyProvider");
+    } else {
+      url.searchParams.set("telephonyProvider", newProvider);
+    }
     window.location.replace(url.toString());
   };
 
@@ -553,7 +587,34 @@ function App() {
         setIsAudioPlaybackEnabled={setIsAudioPlaybackEnabled}
         codec={urlCodec}
         onCodecChange={handleCodecChange}
+        transport={urlTransport}
+        onTransportChange={handleTransportChange}
+        telephonyProvider={urlTelephonyProvider}
+        onTelephonyProviderChange={handleTelephonyProviderChange}
+        onShowTelephonyConfig={() => setShowTelephonyConfig(true)}
+        onShowTestCall={() => setShowTestCall(true)}
       />
+
+      <TelephonyConfig
+        provider={urlTelephonyProvider}
+        isVisible={showTelephonyConfig}
+        onClose={() => setShowTelephonyConfig(false)}
+      />
+
+      {/* Test Call Modal */}
+      {showTestCall && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="relative bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowTestCall(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-xl font-bold"
+            >
+              ✕
+            </button>
+            <OzonetelTestCall />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
