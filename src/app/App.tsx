@@ -82,11 +82,16 @@ function App() {
 
   const sdkAudioElement = React.useMemo(() => {
     if (typeof window === 'undefined') return undefined;
-    const el = document.createElement('audio');
-    el.autoplay = true;
-    el.style.display = 'none';
-    document.body.appendChild(el);
-    return el;
+    try {
+      const el = document.createElement('audio');
+      el.autoplay = true;
+      el.style.display = 'none';
+      document.body.appendChild(el);
+      return el;
+    } catch (error) {
+      console.warn('Failed to create audio element:', error);
+      return undefined;
+    }
   }, []);
 
   // Attach SDK audio element once it exists (after first render in browser)
@@ -119,13 +124,27 @@ function App() {
   const [userText, setUserText] = useState<string>("");
   const [isPTTActive, setIsPTTActive] = useState<boolean>(false);
   const [isPTTUserSpeaking, setIsPTTUserSpeaking] = useState<boolean>(false);
-  const [isAudioPlaybackEnabled, setIsAudioPlaybackEnabled] = useState<boolean>(
-    () => {
-      if (typeof window === 'undefined') return true;
-      const stored = localStorage.getItem('audioPlaybackEnabled');
-      return stored ? stored === 'true' : true;
-    },
-  );
+  const [isAudioPlaybackEnabled, setIsAudioPlaybackEnabled] = useState<boolean>(true);
+
+  // Load preferences from localStorage after component mounts
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedAudioPlayback = localStorage.getItem('audioPlaybackEnabled');
+      if (storedAudioPlayback) {
+        setIsAudioPlaybackEnabled(storedAudioPlayback === 'true');
+      }
+      
+      const storedPushToTalkUI = localStorage.getItem("pushToTalkUI");
+      if (storedPushToTalkUI) {
+        setIsPTTActive(storedPushToTalkUI === "true");
+      }
+      
+      const storedLogsExpanded = localStorage.getItem("logsExpanded");
+      if (storedLogsExpanded) {
+        setIsEventsPaneExpanded(storedLogsExpanded === "true");
+      }
+    }
+  }, []);
 
   // Telephony configuration modal state
   const [showTelephonyConfig, setShowTelephonyConfig] = useState<boolean>(false);
@@ -152,9 +171,11 @@ function App() {
     let finalAgentConfig = searchParams.get("agentConfig");
     if (!finalAgentConfig || !allAgentSets[finalAgentConfig]) {
       finalAgentConfig = defaultAgentSetKey;
-      const url = new URL(window.location.toString());
-      url.searchParams.set("agentConfig", finalAgentConfig);
-      window.location.replace(url.toString());
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.toString());
+        url.searchParams.set("agentConfig", finalAgentConfig);
+        window.location.replace(url.toString());
+      }
       return;
     }
 
@@ -366,59 +387,56 @@ function App() {
 
   // Because we need a new connection, refresh the page when codec changes
   const handleCodecChange = (newCodec: string) => {
-    const url = new URL(window.location.toString());
-    url.searchParams.set("codec", newCodec);
-    window.location.replace(url.toString());
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.toString());
+      url.searchParams.set("codec", newCodec);
+      window.location.replace(url.toString());
+    }
   };
 
   // Transport change handler - refresh page to apply new transport
   const handleTransportChange = (newTransport: string) => {
-    const url = new URL(window.location.toString());
-    url.searchParams.set("transport", newTransport);
-    window.location.replace(url.toString());
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.toString());
+      url.searchParams.set("transport", newTransport);
+      window.location.replace(url.toString());
+    }
   };
 
   // Telephony provider change handler - update URL parameter
   const handleTelephonyProviderChange = (newProvider: TelephonyProvider) => {
-    const url = new URL(window.location.toString());
-    if (newProvider === 'none') {
-      url.searchParams.delete("telephonyProvider");
-    } else {
-      url.searchParams.set("telephonyProvider", newProvider);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.toString());
+      if (newProvider === 'none') {
+        url.searchParams.delete("telephonyProvider");
+      } else {
+        url.searchParams.set("telephonyProvider", newProvider);
+      }
+      window.location.replace(url.toString());
     }
-    window.location.replace(url.toString());
   };
 
-  useEffect(() => {
-    const storedPushToTalkUI = localStorage.getItem("pushToTalkUI");
-    if (storedPushToTalkUI) {
-      setIsPTTActive(storedPushToTalkUI === "true");
-    }
-    const storedLogsExpanded = localStorage.getItem("logsExpanded");
-    if (storedLogsExpanded) {
-      setIsEventsPaneExpanded(storedLogsExpanded === "true");
-    }
-    const storedAudioPlaybackEnabled = localStorage.getItem(
-      "audioPlaybackEnabled"
-    );
-    if (storedAudioPlaybackEnabled) {
-      setIsAudioPlaybackEnabled(storedAudioPlaybackEnabled === "true");
-    }
-  }, []);
+
 
   useEffect(() => {
-    localStorage.setItem("pushToTalkUI", isPTTActive.toString());
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("pushToTalkUI", isPTTActive.toString());
+    }
   }, [isPTTActive]);
 
   useEffect(() => {
-    localStorage.setItem("logsExpanded", isEventsPaneExpanded.toString());
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("logsExpanded", isEventsPaneExpanded.toString());
+    }
   }, [isEventsPaneExpanded]);
 
   useEffect(() => {
-    localStorage.setItem(
-      "audioPlaybackEnabled",
-      isAudioPlaybackEnabled.toString()
-    );
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(
+        "audioPlaybackEnabled",
+        isAudioPlaybackEnabled.toString()
+      );
+    }
   }, [isAudioPlaybackEnabled]);
 
   useEffect(() => {
@@ -476,7 +494,11 @@ function App() {
       <div className="p-5 text-lg font-semibold flex justify-between items-center">
         <div
           className="flex items-center cursor-pointer"
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              window.location.reload();
+            }
+          }}
         >
           <div>
             <Image
