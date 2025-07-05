@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
     // Clean phone number for Ozonetel API
     const phoneNoClean = phoneNumber.replace('+', '').replace('-', '');
     
-    // Use the local ngrok URLs for Healthcare agent
-    const ozonetelUrl = `http://in1-cpaas.ozonetel.com/outbound/outbound.php?phone_no=${phoneNoClean}&api_key=KK11001341678ccf2d10f850135f15c809&outbound_version=2&url=https://89e6-42-108-29-241.ngrok-free.app/api/getXML_dvcom_in_en&callback_url=https://89e6-42-108-29-241.ngrok-free.app/api/telephony/ozonetel/webhook`;
+    // Use the GCP VM URLs for Healthcare agent
+    const ozonetelUrl = `http://in1-cpaas.ozonetel.com/outbound/outbound.php?phone_no=${phoneNoClean}&api_key=KK11001341678ccf2d10f850135f15c809&outbound_version=2&url=http://34.100.243.161:3000/api/getXML_dvcom_in_en&callback_url=http://34.100.243.161:3000/api/telephony/ozonetel/webhook`;
     
     console.log(`[Ozonetel Call Proxy] Calling: ${ozonetelUrl}`);
     

@@ -15,13 +15,13 @@ export async function GET(request: NextRequest) {
   
   console.log('XML endpoint called with params:', { phone_no: phoneNo, api_key: apiKey, ucid });
   
-  // Using echo.websocket.org as a temporary test to verify WebSocket connectivity
+  // Using GCP VM WebSocket server for production Ozonetel integration
   const xmlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <stream is_sip="true" url="wss://echo.websocket.org/?cust_name=Mr.Sachin&key=KK11001341678ccf2d10f850135f15c809&phone_no=${phoneNo}&ucid=${ucid}" />
+  <stream is_sip="true" url="ws://34.100.243.161:8080/?cust_name=Mr.Sachin&key=KK11001341678ccf2d10f850135f15c809&phone_no=${phoneNo}&ucid=${ucid}" />
 </Response>`;
 
-  console.log('Returning XML response with echo.websocket.org WebSocket URL');
+  console.log('Returning XML response with GCP VM WebSocket URL: ws://34.100.243.161:8080/');
   
   return new Response(xmlResponse, {
     headers: {
