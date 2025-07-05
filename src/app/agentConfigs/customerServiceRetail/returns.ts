@@ -88,7 +88,9 @@ Speak at a medium pace—steady and clear. Brief pauses can be used for emphasis
         required: ['phoneNumber'],
         additionalProperties: false,
       },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       execute: async (input: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { phoneNumber } = input as { phoneNumber: string };
         return {
           orders: [

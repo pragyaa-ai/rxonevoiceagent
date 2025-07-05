@@ -77,6 +77,7 @@ When patients want to book appointments:
         required: ['department'],
         additionalProperties: false,
       },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       execute: async (input: any) => {
         const { department } = input as { department: string };
         
@@ -168,6 +169,7 @@ When patients want to book appointments:
         additionalProperties: false,
       },
       execute: async (input: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { patientName, phoneNumber, department, preferredDoctor, appointmentDate, appointmentTime, medicalConcern } = input;
         
         // Generate a mock appointment ID

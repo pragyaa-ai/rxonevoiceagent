@@ -86,6 +86,7 @@ Always ask:
         required: ['emergencyType', 'symptoms'],
         additionalProperties: false,
       },
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       execute: async (input: any) => {
         return {
           urgencyLevel: 'high',
