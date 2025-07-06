@@ -21,13 +21,13 @@ export async function GET(request: NextRequest) {
     all_params: Object.fromEntries(searchParams.entries())
   });
   
-  // Using GCP VM WebSocket server for production Ozonetel integration
-  const xmlResponse = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Stream url="ws://34.100.243.161:8080/?cust_name=Mr.Sachin&key=${apiKey}&phone_no=${phoneNo}&ucid=${ucid}" />
-</Response>`;
+  // Using working DVCOM XML format adapted for RXone VoiceAgent
+  const xmlResponse = `<response>
+<start-record/>
+<stream is_sip="true" url="ws://34.100.243.161:8080/wsRxone?cust_name=Mr.Sachin&key=${apiKey}&phone_no=${phoneNo}&ucid=${ucid}" x-uui="{"cust_name": "Mr.Sachin", "key": "${apiKey}", "phone_no": "${phoneNo}", "ucid": "${ucid}"}">${ucid}</stream>
+</response>`;
 
-  console.log('Returning XML response with GCP VM WebSocket URL: ws://34.100.243.161:8080/');
+  console.log('Returning XML response with RXone VoiceAgent WebSocket URL: ws://34.100.243.161:8080/wsRxone');
   
   return new Response(xmlResponse, {
     headers: {
