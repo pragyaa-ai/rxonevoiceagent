@@ -1,69 +1,93 @@
 const WebSocket = require('ws');
 
-// Test WebSocket connection to your GCP VM
-const wsUrl = 'ws://34.100.243.161:8080/?cust_name=TestUser&key=KK11001341678ccf2d10f850135f15c809&phone_no=919999984076&ucid=test123';
+const GCP_VM_IP = '34.100.243.161';
+const WS_URL = `ws://${GCP_VM_IP}:8080/`;
 
-console.log('🧪 Testing WebSocket connection...');
-console.log(`🔗 Connecting to: ${wsUrl}`);
+console.log('🔗 Testing WebSocket connection to GCP VM...');
+console.log(`🌐 URL: ${WS_URL}`);
 
-const ws = new WebSocket(wsUrl);
+function testWebSocketConnection() {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(WS_URL);
+    
+    ws.on('open', () => {
+      console.log('✅ WebSocket connection established');
+      
+      // Test sending a message (simulating what Ozonetel would do)
+      const testMessage = {
+        type: 'session.create',
+        session: {
+          model: 'gpt-4o-realtime-preview',
+          voice: 'alloy'
+        }
+      };
+      
+      console.log('📤 Sending test message...');
+      ws.send(JSON.stringify(testMessage));
+      
+      // Wait for response
+      setTimeout(() => {
+        console.log('⏱️  Connection maintained for 5 seconds');
+        ws.close();
+        resolve(true);
+      }, 5000);
+    });
+    
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data);
+        console.log('📥 Received message:', message.type || 'unknown');
+        if (message.error) {
+          console.error('❌ Error in message:', message.error);
+        }
+      } catch (e) {
+        console.log('📥 Received raw data:', data.toString());
+      }
+    });
+    
+    ws.on('close', (code, reason) => {
+      console.log(`🔚 WebSocket closed: ${code} - ${reason}`);
+      resolve(false);
+    });
+    
+    ws.on('error', (error) => {
+      console.error('❌ WebSocket error:', error.message);
+      reject(error);
+    });
+    
+    // Timeout after 10 seconds
+    setTimeout(() => {
+      console.log('⏰ Test timeout');
+      ws.terminate();
+      reject(new Error('Connection timeout'));
+    }, 10000);
+  });
+}
 
-ws.on('open', () => {
-  console.log('✅ WebSocket connected successfully!');
-  console.log('📝 Connection details:');
-  console.log(`   - URL: ${wsUrl}`);
-  console.log(`   - ReadyState: ${ws.readyState}`);
+// Test multiple connections (simulating multiple calls)
+async function runTests() {
+  console.log('🚀 Starting WebSocket connection tests...\n');
   
-  // Send a test message
-  const testMessage = {
-    type: 'test',
-    message: 'Hello from test client',
-    timestamp: new Date().toISOString()
-  };
-  
-  ws.send(JSON.stringify(testMessage));
-  console.log('📤 Sent test message:', testMessage);
-  
-  // Close after 3 seconds
-  setTimeout(() => {
-    console.log('🔚 Closing connection...');
-    ws.close();
-  }, 3000);
-});
-
-ws.on('message', (data) => {
-  try {
-    const message = JSON.parse(data.toString());
-    console.log('📥 Received message:', message);
-  } catch (error) {
-    console.log('📥 Received raw data:', data.toString());
+  for (let i = 1; i <= 3; i++) {
+    console.log(`\n--- Test ${i} ---`);
+    try {
+      await testWebSocketConnection();
+      console.log(`✅ Test ${i} passed`);
+    } catch (error) {
+      console.log(`❌ Test ${i} failed:`, error.message);
+    }
+    
+    // Wait 2 seconds between tests
+    if (i < 3) {
+      console.log('⏳ Waiting 2 seconds before next test...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
   }
-});
+  
+  console.log('\n🎯 DIAGNOSIS:');
+  console.log('  If tests pass: WebSocket server is working');
+  console.log('  If tests fail: WebSocket server configuration issue');
+  console.log('  If tests timeout: Connection/firewall issue');
+}
 
-ws.on('error', (error) => {
-  console.error('❌ WebSocket error:', error);
-  console.error('🔍 This might be why Ozonetel can\'t connect!');
-  console.error('💡 Check:');
-  console.error('   - WebSocket server is running on GCP VM');
-  console.error('   - Environment variables (.env file) are set');
-  console.error('   - OpenAI API key is valid');
-  console.error('   - Server has proper error handling');
-});
-
-ws.on('close', (code, reason) => {
-  console.log(`🔚 WebSocket closed. Code: ${code}, Reason: ${reason || 'No reason provided'}`);
-  if (code !== 1000) {
-    console.error('⚠️  Abnormal close code. This indicates an issue.');
-  } else {
-    console.log('✅ Clean close - WebSocket server is working properly!');
-  }
-  process.exit(0);
-});
-
-// Timeout after 10 seconds
-setTimeout(() => {
-  console.error('⏰ Connection timeout - WebSocket server may not be responding');
-  console.error('🔍 Check if WebSocket server is running on GCP VM port 8080');
-  ws.close();
-  process.exit(1);
-}, 10000); 
+runTests().catch(console.error); 
