@@ -9,16 +9,22 @@ import { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const phoneNo = searchParams.get('phone_no');
-  const apiKey = searchParams.get('api_key');
-  const ucid = searchParams.get('ucid');
+  // Use correct parameter names from Ozonetel
+  const phoneNo = searchParams.get('cid') || searchParams.get('phone_no');
+  const ucid = searchParams.get('sid') || searchParams.get('ucid');
+  const apiKey = 'KK11001341678ccf2d10f850135f15c809'; // Use our API key
   
-  console.log('XML endpoint called with params:', { phone_no: phoneNo, api_key: apiKey, ucid });
+  console.log('XML endpoint called with params:', { 
+    cid: phoneNo, 
+    sid: ucid, 
+    api_key: apiKey,
+    all_params: Object.fromEntries(searchParams.entries())
+  });
   
   // Using GCP VM WebSocket server for production Ozonetel integration
   const xmlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <stream is_sip="true" url="ws://34.100.243.161:8080/?cust_name=Mr.Sachin&key=KK11001341678ccf2d10f850135f15c809&phone_no=${phoneNo}&ucid=${ucid}" />
+  <stream is_sip="true" url="ws://34.100.243.161:8080/?cust_name=Mr.Sachin&key=${apiKey}&phone_no=${phoneNo}&ucid=${ucid}" />
 </Response>`;
 
   console.log('Returning XML response with GCP VM WebSocket URL: ws://34.100.243.161:8080/');
