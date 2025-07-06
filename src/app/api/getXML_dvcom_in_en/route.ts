@@ -18,10 +18,10 @@ export async function GET(request: NextRequest) {
   // Using GCP VM WebSocket server for production Ozonetel integration
   const xmlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <stream is_sip="true" url="ws://34.100.243.161:8080/?cust_name=Mr.Sachin&key=KK11001341678ccf2d10f850135f15c809&phone_no=${phoneNo}&ucid=${ucid}" />
+  <stream is_sip="true" url="ws://34.100.243.161:3000/?cust_name=Mr.Sachin&key=KK11001341678ccf2d10f850135f15c809&phone_no=${phoneNo}&ucid=${ucid}" />
 </Response>`;
 
-  console.log('Returning XML response with GCP VM WebSocket URL: ws://34.100.243.161:8080/');
+  console.log('Returning XML response with GCP VM WebSocket URL: ws://34.100.243.161:3000/');
   
   return new Response(xmlResponse, {
     headers: {
