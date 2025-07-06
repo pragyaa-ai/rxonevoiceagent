@@ -21,10 +21,10 @@ export async function GET(request: NextRequest) {
     all_params: Object.fromEntries(searchParams.entries())
   });
   
-  // Using exact working DVCOM XML format with fixed key and SIP number
+  // Using shortened DVCOM XML format to prevent truncation
   const xmlResponse = `<response>
 <start-record/>
-<stream is_sip="true" url="ws://34.100.243.161:8080/wsRxone?cust_name=Mr.Sachin&key=KfZNKW_dwUuW65UT1JlRUIA1mnO1RrS2TOwGmT_CUrU&phone_no=${phoneNo}&ucid=${ucid}" x-uui="{"cust_name": "Mr.Sachin", "key": "KfZNKW_dwUuW65UT1JlRUIA1mnO1RrS2TOwGmT_CUrU"}">513612</stream>
+<stream is_sip="true" url="ws://34.100.243.161:8080/wsRxone?phone=${phoneNo}&ucid=${ucid}" x-uui='{"phone": "${phoneNo}", "ucid": "${ucid}"}'>513612</stream>
 </response>`;
 
   console.log('Returning XML response with RXone VoiceAgent WebSocket URL: ws://34.100.243.161:8080/wsRxone');
