@@ -42,6 +42,9 @@ wss.on('connection', (ws, req) => {
   
   console.log(`🔌 New WebSocket connection: ${sessionId}`);
   console.log(`📋 Query params:`, query);
+  console.log(`🌐 Request URL: ${req.url}`);
+  console.log(`📡 Request headers:`, req.headers);
+  console.log(`🔗 Remote address: ${req.socket.remoteAddress}`);
   
   // Create OpenAI Realtime API connection
   const openaiWs = new WebSocket(OPENAI_WS_URL, {
@@ -149,9 +152,13 @@ wss.on('connection', (ws, req) => {
     const session = activeSessions.get(sessionId);
     if (!session) return;
 
+    console.log(`📦 [${sessionId}] Raw message received (${data.length} bytes)`);
+    console.log(`📦 [${sessionId}] Message type: ${typeof data}`);
+    
     try {
-      // Parse Ozonetel audio data format
+      // Try to parse as JSON first
       const message = JSON.parse(data.toString());
+      console.log(`📝 [${sessionId}] Parsed JSON message:`, JSON.stringify(message, null, 2));
       
       // Handle Ozonetel media packets
       if (message.event === 'media' && message.type === 'media') {
@@ -194,7 +201,10 @@ wss.on('connection', (ws, req) => {
       }
     } catch (error) {
       // Handle non-JSON data
-      console.log(`📦 [${sessionId}] Binary data received: ${data.length} bytes`);
+      console.log(`📦 [${sessionId}] Non-JSON data received: ${data.length} bytes`);
+      console.log(`📦 [${sessionId}] First 100 bytes as string:`, data.toString().substring(0, 100));
+      console.log(`📦 [${sessionId}] First 20 bytes as hex:`, data.slice(0, 20).toString('hex'));
+      console.log(`📦 [${sessionId}] Parse error:`, error.message);
     }
   });
 
