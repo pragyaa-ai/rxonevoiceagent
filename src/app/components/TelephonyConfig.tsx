@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TelephonyProvider, TelephonyProviderConfig } from '@/app/types';
-import { TELEPHONY_PROVIDERS, getDefaultTelephonyConfig, validateTelephonyConfig } from '@/app/lib/telephonyProviders';
+import { TelephonyProvider, TelephonyProviderConfig } from '../types';
+import { TELEPHONY_PROVIDERS, getDefaultTelephonyConfig, validateTelephonyConfig } from '../lib/telephonyProviders';
 
 interface TelephonyConfigProps {
   provider: TelephonyProvider;
