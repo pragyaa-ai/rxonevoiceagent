@@ -13,25 +13,25 @@ import TelephonyConfig from "./components/TelephonyConfig";
 import OzonetelTestCall from "./components/OzonetelTestCall";
 
 // Types
-import { SessionStatus, TelephonyProvider } from "@/app/types";
+import { SessionStatus, TelephonyProvider } from "./types";
 import type { SimpleAgent } from "./hooks/useRealtimeSession";
 
 // Context providers & hooks
-import { useTranscript } from "@/app/contexts/TranscriptContext";
-import { useEvent } from "@/app/contexts/EventContext";
+import { useTranscript } from "./contexts/TranscriptContext";
+import { useEvent } from "./contexts/EventContext";
 import { useRealtimeSession } from "./hooks/useRealtimeSession";
-import { createModerationGuardrail } from "@/app/agentConfigs/guardrails";
+import { createModerationGuardrail } from "./agentConfigs/guardrails";
 import { getTransportConfigFromEnvironment } from "./lib/transportUtils";
 
 // Agent configs
-import { allAgentSets, defaultAgentSetKey } from "@/app/agentConfigs";
-import { customerServiceRetailScenario } from "@/app/agentConfigs/customerServiceRetail";
-import { chatSupervisorScenario } from "@/app/agentConfigs/chatSupervisor";
-import { healthcareScenario } from "@/app/agentConfigs/healthcare";
-import { customerServiceRetailCompanyName } from "@/app/agentConfigs/customerServiceRetail";
-import { chatSupervisorCompanyName } from "@/app/agentConfigs/chatSupervisor";
-import { healthcareCompanyName } from "@/app/agentConfigs/healthcare";
-import { simpleHandoffScenario } from "@/app/agentConfigs/simpleHandoff";
+import { allAgentSets, defaultAgentSetKey } from "./agentConfigs";
+import { customerServiceRetailScenario } from "./agentConfigs/customerServiceRetail";
+import { chatSupervisorScenario } from "./agentConfigs/chatSupervisor";
+import { healthcareScenario } from "./agentConfigs/healthcare";
+import { customerServiceRetailCompanyName } from "./agentConfigs/customerServiceRetail";
+import { chatSupervisorCompanyName } from "./agentConfigs/chatSupervisor";
+import { healthcareCompanyName } from "./agentConfigs/healthcare";
+import { simpleHandoffScenario } from "./agentConfigs/simpleHandoff";
 
 // Conversion function to convert RealtimeAgent configs to SimpleAgent
 const convertToSimpleAgents = (agents: any[]): SimpleAgent[] => {

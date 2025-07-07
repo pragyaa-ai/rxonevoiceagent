@@ -1,6 +1,6 @@
 import React from "react";
-import { SessionStatus, TelephonyProvider } from "@/app/types";
-import { TELEPHONY_PROVIDERS } from "@/app/lib/telephonyProviders";
+import { SessionStatus, TelephonyProvider } from "../types";
+import { TELEPHONY_PROVIDERS } from "../lib/telephonyProviders";
 
 interface BottomToolbarProps {
   sessionStatus: SessionStatus;

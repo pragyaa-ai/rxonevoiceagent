@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef } from "react";
-import { useTranscript } from "@/app/contexts/TranscriptContext";
-import { useEvent } from "@/app/contexts/EventContext";
-import { filterTranscriptText, getLanguageInfo } from "@/app/lib/languageFilter";
+import { useCallback, useRef } from "react";
+import { v4 as uuidv4 } from "uuid";
+import { useTranscript } from "../contexts/TranscriptContext";
+import { useEvent } from "../contexts/EventContext";
+import { filterTranscriptText, getLanguageInfo } from "../lib/languageFilter";
 
 export function useHandleSessionHistory() {
   const {

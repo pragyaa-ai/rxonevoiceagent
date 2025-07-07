@@ -3,13 +3,16 @@
 import React, {
   createContext,
   useContext,
+  useRef,
   useState,
+  useCallback,
+  ReactNode,
   FC,
   PropsWithChildren,
 } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { TranscriptItem } from "@/app/types";
-import { filterTranscriptText } from "@/app/lib/languageFilter";
+import { TranscriptItem } from "../types";
+import { filterTranscriptText } from "../lib/languageFilter";
 
 type TranscriptContextValue = {
   transcriptItems: TranscriptItem[];

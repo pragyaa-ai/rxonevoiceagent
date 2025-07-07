@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
-import { useEvent } from "@/app/contexts/EventContext";
-import { LoggedEvent } from "@/app/types";
+import Image from "next/image";
+import { useEvent } from "../contexts/EventContext";
+import { LoggedEvent } from "../types";
 
 export interface EventsProps {
   isExpanded: boolean;
