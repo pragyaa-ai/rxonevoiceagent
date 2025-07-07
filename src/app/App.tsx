@@ -14,7 +14,7 @@ import OzonetelTestCall from "./components/OzonetelTestCall";
 
 // Types
 import { SessionStatus, TelephonyProvider } from "@/app/types";
-import type { RealtimeAgent } from '@openai/agents/realtime';
+import type { SimpleAgent } from "./hooks/useRealtimeSession";
 
 // Context providers & hooks
 import { useTranscript } from "@/app/contexts/TranscriptContext";
@@ -33,12 +33,21 @@ import { chatSupervisorCompanyName } from "@/app/agentConfigs/chatSupervisor";
 import { healthcareCompanyName } from "@/app/agentConfigs/healthcare";
 import { simpleHandoffScenario } from "@/app/agentConfigs/simpleHandoff";
 
+// Conversion function to convert RealtimeAgent configs to SimpleAgent
+const convertToSimpleAgents = (agents: any[]): SimpleAgent[] => {
+  return agents.map(agent => ({
+    name: agent.name || agent.config?.name || 'unknown',
+    publicDescription: agent.handoffDescription || agent.config?.publicDescription || '',
+    instructions: agent.instructions || agent.config?.instructions || ''
+  }));
+};
+
 // Map used by connect logic for scenarios defined via the SDK.
-const sdkScenarioMap: Record<string, RealtimeAgent[]> = {
-  simpleHandoff: simpleHandoffScenario,
-  customerServiceRetail: customerServiceRetailScenario,
-  chatSupervisor: chatSupervisorScenario,
-  healthcare: healthcareScenario,
+const sdkScenarioMap: Record<string, SimpleAgent[]> = {
+  simpleHandoff: convertToSimpleAgents(simpleHandoffScenario),
+  customerServiceRetail: convertToSimpleAgents(customerServiceRetailScenario),
+  chatSupervisor: convertToSimpleAgents(chatSupervisorScenario),
+  healthcare: convertToSimpleAgents(healthcareScenario),
 };
 
 import useAudioDownload from "./hooks/useAudioDownload";
@@ -73,7 +82,7 @@ function App() {
 
   const [selectedAgentName, setSelectedAgentName] = useState<string>("");
   const [selectedAgentConfigSet, setSelectedAgentConfigSet] = useState<
-    RealtimeAgent[] | null
+    SimpleAgent[] | null
   >(null);
 
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
@@ -181,9 +190,10 @@ function App() {
 
     const agents = allAgentSets[finalAgentConfig];
     const agentKeyToUse = agents[0]?.name || "";
+    const simpleAgents = convertToSimpleAgents(agents);
 
     setSelectedAgentName(agentKeyToUse);
-    setSelectedAgentConfigSet(agents);
+    setSelectedAgentConfigSet(simpleAgents);
   }, [searchParams]);
 
   useEffect(() => {

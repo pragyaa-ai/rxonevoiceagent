@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import type { RealtimeAgent } from '@openai/agents/realtime';
+import type { SimpleAgent } from '../hooks/useRealtimeSession';
 
 export interface AgentVisualizerProps {
   isExpanded: boolean;
   selectedAgentName: string;
-  selectedAgentConfigSet: RealtimeAgent[] | null;
+  selectedAgentConfigSet: SimpleAgent[] | null;
   agentSetKey: string;
 }
 
