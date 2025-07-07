@@ -24,10 +24,10 @@ export async function GET(request: NextRequest) {
   // Using shortened DVCOM XML format to prevent truncation
   const xmlResponse = `<response>
 <start-record/>
-<stream is_sip="true" url="ws://34.100.243.161:8080/?phone=${phoneNo}&amp;ucid=${ucid}" x-uui='{"phone": "${phoneNo}", "ucid": "${ucid}"}'>513612</stream>
+<stream is_sip="true" url="ws://34.100.243.161:3000/ws/ozonetel?phone=${phoneNo}&amp;ucid=${ucid}" x-uui='{"phone": "${phoneNo}", "ucid": "${ucid}"}'>513612</stream>
 </response>`;
 
-  console.log('Returning XML response with WebSocket URL: ws://34.100.243.161:8080/');
+  console.log('Returning XML response with WebSocket URL: ws://34.100.243.161:3000/ws/ozonetel');
   
   return new Response(xmlResponse, {
     headers: {
