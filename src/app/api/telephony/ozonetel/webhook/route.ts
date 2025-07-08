@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const event = searchParams.get('event');
   const ucid = searchParams.get('ucid');
   const phoneNumber = searchParams.get('phone_number');
-  const callerNumber = searchParams.get('caller_number');
+  // const callerNumber = searchParams.get('caller_number');
 
   console.log(`[Ozonetel Webhook] Event: ${event}, UCID: ${ucid}, Phone: ${phoneNumber}`);
 

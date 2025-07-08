@@ -20,7 +20,7 @@ interface AgentInfo {
   icon: string;
 }
 
-function AgentVisualizer({ isExpanded, selectedAgentName, selectedAgentConfigSet, agentSetKey }: AgentVisualizerProps) {
+function AgentVisualizer({ isExpanded, selectedAgentName, agentSetKey }: AgentVisualizerProps) {
   const [currentAgent, setCurrentAgent] = useState<AgentInfo | null>(null);
   const [pulseAnimation, setPulseAnimation] = useState(true);
 

@@ -88,10 +88,7 @@ Speak at a medium pace—steady and clear. Brief pauses can be used for emphasis
         required: ['phoneNumber'],
         additionalProperties: false,
       },
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (input: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { phoneNumber } = input as { phoneNumber: string };
+      execute: async () => {
         return {
           orders: [
             {
@@ -162,7 +159,7 @@ Speak at a medium pace—steady and clear. Brief pauses can be used for emphasis
         required: ['region', 'itemCategory'],
         additionalProperties: false,
       },
-      execute: async (input: any) => {
+      execute: async () => {
         return {
           policy: `
 At Snowy Peak Boards, we believe in transparent and customer-friendly policies to ensure you have a hassle-free experience. Below are our detailed guidelines:

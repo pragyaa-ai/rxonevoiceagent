@@ -77,9 +77,8 @@ When patients want to book appointments:
         required: ['department'],
         additionalProperties: false,
       },
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      execute: async (input: any) => {
-        const { department } = input as { department: string };
+      execute: async (_input: any) => {
+        const { department } = _input as { department: string };
         
         const deptData: Record<string, any> = {
           cardiology: {
@@ -118,7 +117,7 @@ When patients want to book appointments:
         required: ['serviceType'],
         additionalProperties: false,
       },
-      execute: async (input: any) => {
+      execute: async () => {
         return {
           appointmentInfo: {
             phone: '080 69555555',
@@ -169,8 +168,7 @@ When patients want to book appointments:
         additionalProperties: false,
       },
       execute: async (input: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { patientName, phoneNumber, department, preferredDoctor, appointmentDate, appointmentTime, medicalConcern } = input;
+        const { patientName, phoneNumber, department, preferredDoctor, appointmentDate, appointmentTime } = input;
         
         // Generate a mock appointment ID
         const appointmentId = 'SGR' + Math.random().toString(36).substr(2, 6).toUpperCase();

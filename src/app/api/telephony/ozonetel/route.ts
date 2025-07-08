@@ -1,8 +1,5 @@
 import { NextRequest } from 'next/server';
-import { WebSocket } from 'ws';
-import OpenAI from 'openai';
-import { TelephonySession, TelephonyEvent } from '@/app/types';
-import { healthcareScenario } from '@/app/agentConfigs/healthcare';
+import { TelephonySession } from '@/app/types';
 
 // Audio conversion utilities
 function convertPCM8kTo24k(buffer: Buffer): Buffer {
@@ -20,17 +17,7 @@ function convertPCM8kTo24k(buffer: Buffer): Buffer {
   return Buffer.from(samples24k.buffer);
 }
 
-function convertPCM24kTo8k(buffer: Buffer): Buffer {
-  // Convert 24kHz PCM to 8kHz by downsampling (take every 3rd sample)
-  const samples24k = new Int16Array(buffer.buffer, buffer.byteOffset, buffer.length / 2);
-  const samples8k = new Int16Array(Math.floor(samples24k.length / 3));
-  
-  for (let i = 0; i < samples8k.length; i++) {
-    samples8k[i] = samples24k[i * 3];
-  }
-  
-  return Buffer.from(samples8k.buffer);
-}
+
 
 // Session management
 const activeSessions = new Map<string, {
@@ -75,7 +62,7 @@ export async function POST(req: NextRequest) {
       case 'media':
         return await handleMediaStream(ucid, data);
       case 'stop':
-        return await handleCallStop(ucid, data);
+        return await handleCallStop(ucid);
       default:
         return Response.json({ error: 'Unknown event type' }, { status: 400 });
     }
@@ -145,7 +132,7 @@ async function handleMediaStream(ucid: string, data: any) {
 
   try {
     // Extract audio data from Ozonetel payload
-    const { audioData, format, timestamp } = data;
+    const { audioData } = data;
     
     if (!audioData) {
       return Response.json({ error: 'No audio data provided' }, { status: 400 });
@@ -159,10 +146,10 @@ async function handleMediaStream(ucid: string, data: any) {
     
     // Forward to OpenAI Realtime API
     // This would typically be sent via WebSocket connection
-    const audioEvent = {
-      type: 'input_audio_buffer.append',
-      audio: convertedAudio.toString('base64')
-    };
+    // const audioEvent = {
+    //   type: 'input_audio_buffer.append',
+    //   audio: convertedAudio.toString('base64')
+    // };
 
     console.log(`[Ozonetel] Processed ${audioBuffer.length} bytes of audio for UCID: ${ucid}`);
 
@@ -184,7 +171,7 @@ async function handleMediaStream(ucid: string, data: any) {
   }
 }
 
-async function handleCallStop(ucid: string, data: any) {
+async function handleCallStop(ucid: string) {
   console.log(`[Ozonetel] Stopping call for UCID: ${ucid}`);
 
   const sessionInfo = activeSessions.get(ucid);

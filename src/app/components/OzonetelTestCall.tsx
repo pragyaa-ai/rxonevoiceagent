@@ -441,7 +441,7 @@ export default function OzonetelTestCall() {
             <p className="font-medium mb-1">📞 Real Call:</p>
             <ul className="space-y-1 ml-4">
               <li>• Actually places a call to your phone number</li>
-              <li>• Uses Ozonetel's telephony API to initiate outbound calls</li>
+              <li>• Uses Ozonetel&apos;s telephony API to initiate outbound calls</li>
               <li>• Your phone will ring if successful</li>
               <li>• Healthcare agent will be ready to assist when you answer</li>
             </ul>
@@ -451,8 +451,8 @@ export default function OzonetelTestCall() {
             <p className="font-medium">Getting Started:</p>
             <ul className="space-y-1 ml-4">
               <li>• Enter your phone number with country code (e.g., +919876543210)</li>
-              <li>• Choose "Integration Test" first to verify the system is working</li>
-              <li>• Then try "Place Real Call" to test actual phone calls</li>
+              <li>• Choose &quot;Integration Test&quot; first to verify the system is working</li>
+              <li>• Then try &quot;Place Real Call&quot; to test actual phone calls</li>
             </ul>
           </div>
         </div>
