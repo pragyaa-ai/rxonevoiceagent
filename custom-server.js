@@ -219,7 +219,9 @@ app.prepare().then(() => {
         ucid: ucid,
         agentReady: false,
         incomingAudioBuffer: [],
-        bufferFlushTimeout: null
+        bufferFlushTimeout: null,
+        playbackBuffer: [],
+        playbackInterval: null
       });
 
       // Handle OpenAI connection establishment
@@ -295,48 +297,41 @@ Be professional, empathetic, and helpful in all interactions.`,
       openaiWs.on('message', async (data) => {
         try {
           const message = JSON.parse(data.toString());
-          
-          // Handle audio responses from AI
-          if (message.type === 'response.audio.delta' && message.delta) {
-            // Convert OpenAI 24kHz audio to Ozonetel 8kHz format using librosa
+          const session = activeTelephonySessions.get(sessionId);
+
+          // Handle audio responses from AI and add to playback buffer
+          if (message.type === 'response.audio.delta' && message.delta && session) {
             const audioData = Buffer.from(message.delta, 'base64');
             const samples = [];
-            
-            // Convert buffer to 16-bit PCM samples
             for (let i = 0; i < audioData.length; i += 2) {
               samples.push(audioData.readInt16LE(i));
             }
-            
-            try {
-              // High-quality downsampling from 24kHz to 8kHz with librosa
-              const downsampledSamples = await convertPCM24kTo8k_HighQuality(samples);
-              
-              // Get quality metrics for monitoring
-              const qualityMetrics = getAudioQualityMetrics(samples, downsampledSamples);
-              
-              const responsePacket = {
-                event: 'media',
-                type: 'media',
-                ucid: ucid,
-                data: {
-                  samples: downsampledSamples,
-                  bitsPerSample: 16,
-                  sampleRate: 8000,
-                  channelCount: 1,
-                  numberOfFrames: downsampledSamples.length,
-                  type: 'data'
+            session.playbackBuffer.push(...samples);
+
+            // Start playback streaming if it hasn't started yet
+            if (!session.playbackInterval && session.playbackBuffer.length > 0) {
+              session.playbackInterval = setInterval(async () => {
+                const SAMPLES_PER_20MS_24k = 480; // 24000Hz * 0.020s
+                if (session.playbackBuffer.length >= SAMPLES_PER_20MS_24k) {
+                  const chunkToProcess = session.playbackBuffer.splice(0, SAMPLES_PER_20MS_24k);
+                  
+                  try {
+                    const downsampledSamples = await convertPCM24kTo8k_HighQuality(chunkToProcess);
+                    const responsePacket = {
+                      event: 'media', type: 'media', ucid: ucid,
+                      data: {
+                        samples: downsampledSamples, bitsPerSample: 16, sampleRate: 8000,
+                        channelCount: 1, numberOfFrames: downsampledSamples.length, type: 'data'
+                      }
+                    };
+                    if (ws.readyState === WebSocket.OPEN) {
+                      ws.send(JSON.stringify(responsePacket));
+                    }
+                  } catch (error) {
+                    console.error(`❌ [${sessionId}] Audio downsampling error during playback:`, error);
+                  }
                 }
-              };
-              
-              // Log quality metrics every 10th packet to avoid spam
-              const session = activeTelephonySessions.get(sessionId);
-              if (session && session.audioChunks % 10 === 0) {
-                // console.log(`🎵 [${sessionId}] Librosa Audio Quality: Input=${qualityMetrics.inputLength}, Output=${qualityMetrics.outputLength}, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
-              }
-              
-              ws.send(JSON.stringify(responsePacket));
-            } catch (error) {
-              console.error(`❌ [${sessionId}] Audio downsampling error:`, error);
+              }, 20);
             }
           }
           
@@ -441,9 +436,8 @@ Be professional, empathetic, and helpful in all interactions.`,
               await processAndSendAudioBatch(session, sessionId, finalBatch);
           }
 
-          if (session.openaiWs) {
-            session.openaiWs.close();
-          }
+          if (session.openaiWs) { session.openaiWs.close(); }
+          if (session.playbackInterval) { clearInterval(session.playbackInterval); }
           ws.close();
         }
 
@@ -459,10 +453,9 @@ Be professional, empathetic, and helpful in all interactions.`,
         console.log(`🔌 [${sessionId}] Telephony session closed after ${duration}ms`);
         console.log(`📊 [${sessionId}] Total audio chunks processed: ${session.audioChunks}`);
         
-        // Close OpenAI connection
-        if (session.openaiWs) {
-          session.openaiWs.close();
-        }
+        // Stop playback interval and close connections
+        if (session.playbackInterval) { clearInterval(session.playbackInterval); }
+        if (session.openaiWs) { session.openaiWs.close(); }
         
         activeTelephonySessions.delete(sessionId);
       }
