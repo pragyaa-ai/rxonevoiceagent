@@ -37,7 +37,7 @@ def resample_audio_librosa(samples, orig_sr, target_sr):
         audio_float, 
         orig_sr=orig_sr, 
         target_sr=target_sr,
-        res_type='kaiser_best'  # Highest quality resampling
+        res_type='kaiser_fast'  # Use faster resampling for real-time
     )
     
     # Convert back to int16 PCM with proper clipping
@@ -54,12 +54,12 @@ def process_audio_request(request):
         if operation == 'downsample_24k_to_8k':
             # OpenAI audio (24kHz) → Ozonetel (8kHz)
             result = resample_audio_librosa(samples, 24000, 8000)
-            logger.info(f"Downsampled {len(samples)} → {len(result)} samples (24kHz→8kHz)")
+            # logger.info(f"Downsampled {len(samples)} → {len(result)} samples (24kHz→8kHz)")
             
         elif operation == 'upsample_8k_to_24k':
             # Ozonetel audio (8kHz) → OpenAI (24kHz)  
             result = resample_audio_librosa(samples, 8000, 24000)
-            logger.info(f"Upsampled {len(samples)} → {len(result)} samples (8kHz→24kHz)")
+            # logger.info(f"Upsampled {len(samples)} → {len(result)} samples (8kHz→24kHz)")
             
         else:
             raise ValueError(f"Unknown operation: {operation}")

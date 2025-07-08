@@ -302,7 +302,7 @@ Be professional, empathetic, and helpful in all interactions.`,
               // Log quality metrics every 10th packet to avoid spam
               const session = activeTelephonySessions.get(sessionId);
               if (session && session.audioChunks % 10 === 0) {
-                console.log(`🎵 [${sessionId}] Librosa Audio Quality: Input=${qualityMetrics.inputLength}, Output=${qualityMetrics.outputLength}, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
+                // console.log(`🎵 [${sessionId}] Librosa Audio Quality: Input=${qualityMetrics.inputLength}, Output=${qualityMetrics.outputLength}, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
               }
               
               ws.send(JSON.stringify(responsePacket));
@@ -317,7 +317,7 @@ Be professional, empathetic, and helpful in all interactions.`,
           } else if (message.type === 'response.done') {
             console.log(`🏥 [${sessionId}] Healthcare agent response completed`);
           } else if (message.type !== 'response.audio.delta') {
-            console.log(`🤖 [${sessionId}] OpenAI:`, message.type);
+            console.log(`🤖 [${sessionId}] OpenAI message:`, JSON.stringify(message, null, 2));
           }
           
         } catch (error) {
@@ -370,7 +370,7 @@ Be professional, empathetic, and helpful in all interactions.`,
             session.audioChunks++;
             
             if (session.audioChunks % 50 === 0) {
-              console.log(`🎤 [${sessionId}] Processing audio chunk ${session.audioChunks}`);
+              // console.log(`🎤 [${sessionId}] Processing audio chunk ${session.audioChunks}`);
             }
             
             // Convert Ozonetel 8kHz to OpenAI 24kHz format using librosa
@@ -383,7 +383,7 @@ Be professional, empathetic, and helpful in all interactions.`,
               // Get quality metrics for monitoring (every 25th packet to avoid spam)
               if (session.audioChunks % 25 === 0) {
                 const qualityMetrics = getAudioQualityMetrics(pcmSamples, upsampledSamples);
-                console.log(`🎤 [${sessionId}] Librosa Caller Audio Quality: ${qualityMetrics.inputLength}→${qualityMetrics.outputLength} samples, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
+                // console.log(`🎤 [${sessionId}] Librosa Caller Audio Quality: ${qualityMetrics.inputLength}→${qualityMetrics.outputLength} samples, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
               }
               
               // Convert to buffer
