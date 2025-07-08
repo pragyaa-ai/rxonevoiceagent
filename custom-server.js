@@ -152,6 +152,38 @@ async function processAndSendAudioBatch(session, sessionId, pcmSamples) {
   }
 }
 
+// Self-correcting loop for smooth audio playback
+async function processPlaybackBuffer(session, ws, ucid, sessionId) {
+  // Stop if the session or websocket has ended
+  if (!activeTelephonySessions.has(sessionId) || ws.readyState !== WebSocket.OPEN) {
+    if (session.playbackTimeout) clearTimeout(session.playbackTimeout);
+    session.playbackTimeout = null;
+    return;
+  }
+  
+  const SAMPLES_PER_20MS_24k = 480; // 24000Hz * 0.020s
+  if (session.playbackBuffer.length >= SAMPLES_PER_20MS_24k) {
+    const chunkToProcess = session.playbackBuffer.splice(0, SAMPLES_PER_20MS_24k);
+    
+    try {
+      const downsampledSamples = await convertPCM24kTo8k_HighQuality(chunkToProcess);
+      const responsePacket = {
+        event: 'media', type: 'media', ucid: ucid,
+        data: {
+          samples: downsampledSamples, bitsPerSample: 16, sampleRate: 8000,
+          channelCount: 1, numberOfFrames: downsampledSamples.length, type: 'data'
+        }
+      };
+      ws.send(JSON.stringify(responsePacket));
+    } catch (error) {
+      console.error(`❌ [${sessionId}] Audio downsampling error during playback:`, error);
+    }
+  }
+
+  // Schedule the next execution
+  session.playbackTimeout = setTimeout(() => processPlaybackBuffer(session, ws, ucid, sessionId), 20);
+}
+
 // OpenAI API configuration
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -221,7 +253,7 @@ app.prepare().then(() => {
         incomingAudioBuffer: [],
         bufferFlushTimeout: null,
         playbackBuffer: [],
-        playbackInterval: null
+        playbackTimeout: null
       });
 
       // Handle OpenAI connection establishment
@@ -309,29 +341,8 @@ Be professional, empathetic, and helpful in all interactions.`,
             session.playbackBuffer.push(...samples);
 
             // Start playback streaming if it hasn't started yet
-            if (!session.playbackInterval && session.playbackBuffer.length > 0) {
-              session.playbackInterval = setInterval(async () => {
-                const SAMPLES_PER_20MS_24k = 480; // 24000Hz * 0.020s
-                if (session.playbackBuffer.length >= SAMPLES_PER_20MS_24k) {
-                  const chunkToProcess = session.playbackBuffer.splice(0, SAMPLES_PER_20MS_24k);
-                  
-                  try {
-                    const downsampledSamples = await convertPCM24kTo8k_HighQuality(chunkToProcess);
-                    const responsePacket = {
-                      event: 'media', type: 'media', ucid: ucid,
-                      data: {
-                        samples: downsampledSamples, bitsPerSample: 16, sampleRate: 8000,
-                        channelCount: 1, numberOfFrames: downsampledSamples.length, type: 'data'
-                      }
-                    };
-                    if (ws.readyState === WebSocket.OPEN) {
-                      ws.send(JSON.stringify(responsePacket));
-                    }
-                  } catch (error) {
-                    console.error(`❌ [${sessionId}] Audio downsampling error during playback:`, error);
-                  }
-                }
-              }, 20);
+            if (!session.playbackTimeout) {
+              processPlaybackBuffer(session, ws, ucid, sessionId);
             }
           }
           
@@ -437,7 +448,7 @@ Be professional, empathetic, and helpful in all interactions.`,
           }
 
           if (session.openaiWs) { session.openaiWs.close(); }
-          if (session.playbackInterval) { clearInterval(session.playbackInterval); }
+          if (session.playbackTimeout) { clearTimeout(session.playbackTimeout); }
           ws.close();
         }
 
@@ -454,7 +465,7 @@ Be professional, empathetic, and helpful in all interactions.`,
         console.log(`📊 [${sessionId}] Total audio chunks processed: ${session.audioChunks}`);
         
         // Stop playback interval and close connections
-        if (session.playbackInterval) { clearInterval(session.playbackInterval); }
+        if (session.playbackTimeout) { clearTimeout(session.playbackTimeout); }
         if (session.openaiWs) { session.openaiWs.close(); }
         
         activeTelephonySessions.delete(sessionId);
