@@ -125,6 +125,33 @@ const handle = app.getRequestHandler();
 // Store active telephony sessions
 const activeTelephonySessions = new Map();
 
+// Helper function for batch processing audio
+async function processAndSendAudioBatch(session, sessionId, pcmSamples) {
+  if (pcmSamples.length === 0) return;
+  
+  try {
+    // High-quality upsampling from 8kHz to 24kHz with librosa
+    const upsampledSamples = await convertPCM8kTo24k_HighQuality(pcmSamples);
+    
+    // Convert to buffer
+    const audioBuffer = Buffer.alloc(upsampledSamples.length * 2);
+    for (let i = 0; i < upsampledSamples.length; i++) {
+      audioBuffer.writeInt16LE(upsampledSamples[i], i * 2);
+    }
+    
+    // Send to OpenAI
+    if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
+      const base64Audio = audioBuffer.toString('base64');
+      session.openaiWs.send(JSON.stringify({
+        type: 'input_audio_buffer.append',
+        audio: base64Audio
+      }));
+    }
+  } catch (error) {
+    console.error(`❌ [${sessionId}] Audio upsampling error:`, error);
+  }
+}
+
 // OpenAI API configuration
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -190,7 +217,9 @@ app.prepare().then(() => {
         audioChunks: 0,
         phoneNumber: phoneNumber,
         ucid: ucid,
-        agentReady: false
+        agentReady: false,
+        incomingAudioBuffer: [],
+        bufferFlushTimeout: null
       });
 
       // Handle OpenAI connection establishment
@@ -365,43 +394,35 @@ Be professional, empathetic, and helpful in all interactions.`,
             return;
           }
           
-          // Process 8kHz audio packets
+          // Process 8kHz audio packets with batching
           if (audioData.sampleRate === 8000 && session.agentReady) {
             session.audioChunks++;
             
-            if (session.audioChunks % 50 === 0) {
-              // console.log(`🎤 [${sessionId}] Processing audio chunk ${session.audioChunks}`);
-            }
-            
-            // Convert Ozonetel 8kHz to OpenAI 24kHz format using librosa
             const pcmSamples = audioData.samples;
+            session.incomingAudioBuffer.push(...pcmSamples);
             
-            try {
-              // High-quality upsampling from 8kHz to 24kHz with librosa
-              const upsampledSamples = await convertPCM8kTo24k_HighQuality(pcmSamples);
-              
-              // Get quality metrics for monitoring (every 25th packet to avoid spam)
-              if (session.audioChunks % 25 === 0) {
-                const qualityMetrics = getAudioQualityMetrics(pcmSamples, upsampledSamples);
-                // console.log(`🎤 [${sessionId}] Librosa Caller Audio Quality: ${qualityMetrics.inputLength}→${qualityMetrics.outputLength} samples, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
-              }
-              
-              // Convert to buffer
-              const audioBuffer = Buffer.alloc(upsampledSamples.length * 2);
-              for (let i = 0; i < upsampledSamples.length; i++) {
-                audioBuffer.writeInt16LE(upsampledSamples[i], i * 2);
-              }
-              
-              // Send to OpenAI
-              if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
-                const base64Audio = audioBuffer.toString('base64');
-                session.openaiWs.send(JSON.stringify({
-                  type: 'input_audio_buffer.append',
-                  audio: base64Audio
-                }));
-              }
-            } catch (error) {
-              console.error(`❌ [${sessionId}] Audio upsampling error:`, error);
+            // Clear previous timeout
+            if (session.bufferFlushTimeout) {
+              clearTimeout(session.bufferFlushTimeout);
+            }
+
+            const BATCH_THRESHOLD_SAMPLES = 80 * 5; // Process after 5 chunks (100ms)
+            const FLUSH_TIMEOUT_MS = 120; // Flush if no audio for 120ms
+
+            // If buffer is full, process immediately
+            if (session.incomingAudioBuffer.length >= BATCH_THRESHOLD_SAMPLES) {
+              const batchToProcess = [...session.incomingAudioBuffer];
+              session.incomingAudioBuffer = [];
+              await processAndSendAudioBatch(session, sessionId, batchToProcess);
+            } else {
+              // Otherwise, set a timeout to flush after a short silence
+              session.bufferFlushTimeout = setTimeout(async () => {
+                if (session.incomingAudioBuffer.length > 0) {
+                  const batchToProcess = [...session.incomingAudioBuffer];
+                  session.incomingAudioBuffer = [];
+                  await processAndSendAudioBatch(session, sessionId, batchToProcess);
+                }
+              }, FLUSH_TIMEOUT_MS);
             }
           }
         }
@@ -409,6 +430,17 @@ Be professional, empathetic, and helpful in all interactions.`,
         // Handle call stop
         if (message.event === 'stop') {
           console.log(`👋 [${sessionId}] Healthcare call ended`);
+
+          // Final flush of any remaining audio
+          if (session.bufferFlushTimeout) {
+            clearTimeout(session.bufferFlushTimeout);
+          }
+          if (session.incomingAudioBuffer.length > 0) {
+              const finalBatch = [...session.incomingAudioBuffer];
+              session.incomingAudioBuffer = [];
+              await processAndSendAudioBatch(session, sessionId, finalBatch);
+          }
+
           if (session.openaiWs) {
             session.openaiWs.close();
           }
