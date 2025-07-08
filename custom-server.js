@@ -2,12 +2,117 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const WebSocket = require('ws');
+const { spawn } = require('child_process');
 
 // Load environment variables
 require('dotenv').config();
 
-// Load high-quality audio processing utilities (v2.8)
-const { convertPCM24kTo8k_HighQuality, convertPCM8kTo24k_HighQuality, getAudioQualityMetrics } = require('./audio-utils-v2.8.js');
+// Initialize Librosa Audio Processor (Python child process)
+let audioProcessor = null;
+let processorReady = false;
+const pendingAudioRequests = new Map();
+let requestCounter = 0;
+
+function initializeAudioProcessor() {
+  console.log('🎵 Starting Librosa Audio Processor...');
+  
+  audioProcessor = spawn('python3', ['audio_processor.py'], {
+    stdio: ['pipe', 'pipe', 'pipe']
+  });
+
+  audioProcessor.stdout.on('data', (data) => {
+    const lines = data.toString().split('\n');
+    lines.forEach(line => {
+      if (line.trim()) {
+        try {
+          const response = JSON.parse(line);
+          const requestId = response.requestId;
+          
+          if (pendingAudioRequests.has(requestId)) {
+            const { resolve, reject } = pendingAudioRequests.get(requestId);
+            pendingAudioRequests.delete(requestId);
+            
+            if (response.success) {
+              resolve(response.samples);
+            } else {
+              reject(new Error(response.error));
+            }
+          }
+        } catch (e) {
+          console.log(`[Audio-Librosa] ${line}`);
+        }
+      }
+    });
+  });
+
+  audioProcessor.stderr.on('data', (data) => {
+    console.log(`[Audio-Librosa] ${data.toString().trim()}`);
+  });
+
+  audioProcessor.on('close', (code) => {
+    console.log(`❌ Audio processor exited with code ${code}`);
+    processorReady = false;
+  });
+
+  audioProcessor.on('error', (error) => {
+    console.error(`❌ Audio processor error:`, error);
+    processorReady = false;
+  });
+
+  // Give it a moment to start
+  setTimeout(() => {
+    processorReady = true;
+    console.log('✅ Librosa Audio Processor ready for high-quality resampling');
+  }, 2000);
+}
+
+// Audio processing functions using Librosa
+function processAudioWithLibrosa(samples, operation) {
+  return new Promise((resolve, reject) => {
+    if (!processorReady || !audioProcessor) {
+      reject(new Error('Audio processor not ready'));
+      return;
+    }
+
+    const requestId = ++requestCounter;
+    pendingAudioRequests.set(requestId, { resolve, reject });
+
+    const request = {
+      requestId,
+      operation,
+      samples
+    };
+
+    try {
+      audioProcessor.stdin.write(JSON.stringify(request) + '\n');
+    } catch (error) {
+      pendingAudioRequests.delete(requestId);
+      reject(error);
+    }
+  });
+}
+
+async function convertPCM24kTo8k_HighQuality(samples) {
+  return await processAudioWithLibrosa(samples, 'downsample_24k_to_8k');
+}
+
+async function convertPCM8kTo24k_HighQuality(samples) {
+  return await processAudioWithLibrosa(samples, 'upsample_8k_to_24k');
+}
+
+function getAudioQualityMetrics(inputSamples, outputSamples) {
+  const inputRMS = Math.sqrt(inputSamples.reduce((sum, sample) => sum + sample * sample, 0) / inputSamples.length);
+  const outputRMS = Math.sqrt(outputSamples.reduce((sum, sample) => sum + sample * sample, 0) / outputSamples.length);
+  
+  return {
+    inputLength: inputSamples.length,
+    outputLength: outputSamples.length,
+    inputRMS: inputRMS,
+    outputRMS: outputRMS,
+    dynamicRange: outputRMS > 0 ? 20 * Math.log10(32767 / outputRMS) : 0,
+    conversionRatio: outputSamples.length / inputSamples.length
+  };
+}
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
@@ -29,7 +134,10 @@ if (!OPENAI_API_KEY) {
 }
 
 console.log('✅ OpenAI API key configured for healthcare agents');
-console.log('🎵 RxOne Healthcare VoiceAgent v2.8 - Advanced Audio Processing Enabled');
+console.log('🎵 RxOne Healthcare VoiceAgent v2.8 - Librosa Audio Processing Enabled');
+
+// Initialize Librosa audio processor
+initializeAudioProcessor();
 
 app.prepare().then(() => {
   // Create HTTP server
@@ -155,13 +263,13 @@ Be professional, empathetic, and helpful in all interactions.`,
       });
 
       // Handle OpenAI responses (AI speaking to caller)
-      openaiWs.on('message', (data) => {
+      openaiWs.on('message', async (data) => {
         try {
           const message = JSON.parse(data.toString());
           
           // Handle audio responses from AI
           if (message.type === 'response.audio.delta' && message.delta) {
-            // Convert OpenAI 24kHz audio to Ozonetel 8kHz format using high-quality resampling
+            // Convert OpenAI 24kHz audio to Ozonetel 8kHz format using librosa
             const audioData = Buffer.from(message.delta, 'base64');
             const samples = [];
             
@@ -170,33 +278,37 @@ Be professional, empathetic, and helpful in all interactions.`,
               samples.push(audioData.readInt16LE(i));
             }
             
-            // High-quality downsampling from 24kHz to 8kHz with anti-aliasing
-            const downsampledSamples = convertPCM24kTo8k_HighQuality(samples);
-            
-            // Get quality metrics for monitoring
-            const qualityMetrics = getAudioQualityMetrics(samples, downsampledSamples);
-            
-            const responsePacket = {
-              event: 'media',
-              type: 'media',
-              ucid: ucid,
-              data: {
-                samples: downsampledSamples,
-                bitsPerSample: 16,
-                sampleRate: 8000,
-                channelCount: 1,
-                numberOfFrames: downsampledSamples.length,
-                type: 'data'
+            try {
+              // High-quality downsampling from 24kHz to 8kHz with librosa
+              const downsampledSamples = await convertPCM24kTo8k_HighQuality(samples);
+              
+              // Get quality metrics for monitoring
+              const qualityMetrics = getAudioQualityMetrics(samples, downsampledSamples);
+              
+              const responsePacket = {
+                event: 'media',
+                type: 'media',
+                ucid: ucid,
+                data: {
+                  samples: downsampledSamples,
+                  bitsPerSample: 16,
+                  sampleRate: 8000,
+                  channelCount: 1,
+                  numberOfFrames: downsampledSamples.length,
+                  type: 'data'
+                }
+              };
+              
+              // Log quality metrics every 10th packet to avoid spam
+              const session = activeTelephonySessions.get(sessionId);
+              if (session && session.audioChunks % 10 === 0) {
+                console.log(`🎵 [${sessionId}] Librosa Audio Quality: Input=${qualityMetrics.inputLength}, Output=${qualityMetrics.outputLength}, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
               }
-            };
-            
-            // Log quality metrics every 10th packet to avoid spam
-            const session = activeTelephonySessions.get(sessionId);
-            if (session && session.audioChunks % 10 === 0) {
-              console.log(`🎵 [${sessionId}] Audio Quality: Input=${qualityMetrics.inputLength}, Output=${qualityMetrics.outputLength}, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
+              
+              ws.send(JSON.stringify(responsePacket));
+            } catch (error) {
+              console.error(`❌ [${sessionId}] Audio downsampling error:`, error);
             }
-            
-            ws.send(JSON.stringify(responsePacket));
           }
           
           // Log other important messages
@@ -226,7 +338,7 @@ Be professional, empathetic, and helpful in all interactions.`,
     }
 
     // Handle incoming messages from Ozonetel
-    ws.on('message', (data) => {
+    ws.on('message', async (data) => {
       const session = activeTelephonySessions.get(sessionId);
       if (!session) return;
 
@@ -261,31 +373,35 @@ Be professional, empathetic, and helpful in all interactions.`,
               console.log(`🎤 [${sessionId}] Processing audio chunk ${session.audioChunks}`);
             }
             
-            // Convert Ozonetel 8kHz to OpenAI 24kHz format using high-quality resampling
+            // Convert Ozonetel 8kHz to OpenAI 24kHz format using librosa
             const pcmSamples = audioData.samples;
             
-            // High-quality upsampling from 8kHz to 24kHz with anti-aliasing
-            const upsampledSamples = convertPCM8kTo24k_HighQuality(pcmSamples);
-            
-            // Get quality metrics for monitoring (every 25th packet to avoid spam)
-            if (session.audioChunks % 25 === 0) {
-              const qualityMetrics = getAudioQualityMetrics(pcmSamples, upsampledSamples);
-              console.log(`🎤 [${sessionId}] Caller Audio Quality: ${qualityMetrics.inputLength}→${qualityMetrics.outputLength} samples, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
-            }
-            
-            // Convert to buffer
-            const audioBuffer = Buffer.alloc(upsampledSamples.length * 2);
-            for (let i = 0; i < upsampledSamples.length; i++) {
-              audioBuffer.writeInt16LE(upsampledSamples[i], i * 2);
-            }
-            
-            // Send to OpenAI
-            if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
-              const base64Audio = audioBuffer.toString('base64');
-              session.openaiWs.send(JSON.stringify({
-                type: 'input_audio_buffer.append',
-                audio: base64Audio
-              }));
+            try {
+              // High-quality upsampling from 8kHz to 24kHz with librosa
+              const upsampledSamples = await convertPCM8kTo24k_HighQuality(pcmSamples);
+              
+              // Get quality metrics for monitoring (every 25th packet to avoid spam)
+              if (session.audioChunks % 25 === 0) {
+                const qualityMetrics = getAudioQualityMetrics(pcmSamples, upsampledSamples);
+                console.log(`🎤 [${sessionId}] Librosa Caller Audio Quality: ${qualityMetrics.inputLength}→${qualityMetrics.outputLength} samples, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
+              }
+              
+              // Convert to buffer
+              const audioBuffer = Buffer.alloc(upsampledSamples.length * 2);
+              for (let i = 0; i < upsampledSamples.length; i++) {
+                audioBuffer.writeInt16LE(upsampledSamples[i], i * 2);
+              }
+              
+              // Send to OpenAI
+              if (session.openaiWs && session.openaiWs.readyState === WebSocket.OPEN) {
+                const base64Audio = audioBuffer.toString('base64');
+                session.openaiWs.send(JSON.stringify({
+                  type: 'input_audio_buffer.append',
+                  audio: base64Audio
+                }));
+              }
+            } catch (error) {
+              console.error(`❌ [${sessionId}] Audio upsampling error:`, error);
             }
           }
         }
@@ -329,6 +445,23 @@ Be professional, empathetic, and helpful in all interactions.`,
     if (err) throw err;
     console.log(`🚀 Healthcare telephony server ready on http://${hostname}:${port}`);
     console.log(`🏥 Telephony WebSocket ready on ws://${hostname}:${port}/ws/ozonetel`);
-    console.log(`📞 Ready for Sagar Hospitals healthcare calls`);
+    console.log(`📞 Ready for Sagar Hospitals healthcare calls with Librosa audio processing`);
   });
+});
+
+// Cleanup on process exit
+process.on('SIGINT', () => {
+  console.log('\n🛑 Shutting down server...');
+  if (audioProcessor) {
+    audioProcessor.kill();
+  }
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n🛑 Shutting down server...');
+  if (audioProcessor) {
+    audioProcessor.kill();
+  }
+  process.exit(0);
 }); 
