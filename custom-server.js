@@ -16,7 +16,7 @@ let requestCounter = 0;
 function initializeAudioProcessor() {
   console.log('🎵 Starting Librosa Audio Processor...');
   
-  audioProcessor = spawn('python3', ['audio_processor.py'], {
+  audioProcessor = spawn('venv/bin/python3', ['audio_processor.py'], {
     stdio: ['pipe', 'pipe', 'pipe']
   });
 
