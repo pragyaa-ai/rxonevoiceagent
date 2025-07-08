@@ -1,21 +1,8 @@
 import { NextRequest } from 'next/server';
 import { TelephonySession } from '@/app/types';
+import { convertPCM8kTo24k, getAudioQualityMetrics } from '@/app/lib/advancedAudioUtils';
 
-// Audio conversion utilities
-function convertPCM8kTo24k(buffer: Buffer): Buffer {
-  // Convert 8kHz PCM to 24kHz by upsampling (3x interpolation)
-  const samples8k = new Int16Array(buffer.buffer, buffer.byteOffset, buffer.length / 2);
-  const samples24k = new Int16Array(samples8k.length * 3);
-  
-  for (let i = 0; i < samples8k.length; i++) {
-    const sample = samples8k[i];
-    samples24k[i * 3] = sample;
-    samples24k[i * 3 + 1] = sample;
-    samples24k[i * 3 + 2] = sample;
-  }
-  
-  return Buffer.from(samples24k.buffer);
-}
+console.log('[Audio v2.8] Advanced audio resampling system initialized');
 
 
 
@@ -141,8 +128,11 @@ async function handleMediaStream(ucid: string, data: any) {
     // Decode base64 audio data
     const audioBuffer = Buffer.from(audioData, 'base64');
     
-    // Convert from 8kHz PCM (Ozonetel) to 24kHz PCM (OpenAI)
+    // Convert from 8kHz PCM (Ozonetel) to 24kHz PCM (OpenAI) using high-quality resampling
     const convertedAudio = convertPCM8kTo24k(audioBuffer);
+    
+    // Get audio quality metrics for monitoring
+    const qualityMetrics = getAudioQualityMetrics(audioBuffer, convertedAudio);
     
     // Forward to OpenAI Realtime API
     // This would typically be sent via WebSocket connection
@@ -151,7 +141,8 @@ async function handleMediaStream(ucid: string, data: any) {
     //   audio: convertedAudio.toString('base64')
     // };
 
-    console.log(`[Ozonetel] Processed ${audioBuffer.length} bytes of audio for UCID: ${ucid}`);
+    console.log(`[Audio v2.8] Processed ${audioBuffer.length} → ${convertedAudio.length} bytes (${qualityMetrics.conversionRatio.toFixed(2)}x) for UCID: ${ucid}`);
+    console.log(`[Audio v2.8] Quality: Input RMS=${qualityMetrics.inputRMS.toFixed(1)}, Output RMS=${qualityMetrics.outputRMS.toFixed(1)}, Dynamic Range=${qualityMetrics.dynamicRange.toFixed(1)}dB`);
 
     // In a real implementation, this would be sent via WebSocket to OpenAI
     // For now, we'll log the event

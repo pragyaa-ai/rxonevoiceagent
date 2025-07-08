@@ -6,6 +6,9 @@ const WebSocket = require('ws');
 // Load environment variables
 require('dotenv').config();
 
+// Load high-quality audio processing utilities (v2.8)
+const { convertPCM24kTo8k_HighQuality, convertPCM8kTo24k_HighQuality, getAudioQualityMetrics } = require('./audio-utils-v2.8.js');
+
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
 const port = process.env.PORT || 3000;
@@ -26,6 +29,7 @@ if (!OPENAI_API_KEY) {
 }
 
 console.log('✅ OpenAI API key configured for healthcare agents');
+console.log('🎵 RxOne Healthcare VoiceAgent v2.8 - Advanced Audio Processing Enabled');
 
 app.prepare().then(() => {
   // Create HTTP server
@@ -157,20 +161,20 @@ Be professional, empathetic, and helpful in all interactions.`,
           
           // Handle audio responses from AI
           if (message.type === 'response.audio.delta' && message.delta) {
-            // Convert OpenAI 24kHz audio to Ozonetel 8kHz format
+            // Convert OpenAI 24kHz audio to Ozonetel 8kHz format using high-quality resampling
             const audioData = Buffer.from(message.delta, 'base64');
             const samples = [];
             
-            // Convert buffer to 16-bit PCM samples and downsample
+            // Convert buffer to 16-bit PCM samples
             for (let i = 0; i < audioData.length; i += 2) {
               samples.push(audioData.readInt16LE(i));
             }
             
-            // Simple downsampling from 24kHz to 8kHz (take every 3rd sample)
-            const downsampledSamples = [];
-            for (let i = 0; i < samples.length; i += 3) {
-              downsampledSamples.push(samples[i]);
-            }
+            // High-quality downsampling from 24kHz to 8kHz with anti-aliasing
+            const downsampledSamples = convertPCM24kTo8k_HighQuality(samples);
+            
+            // Get quality metrics for monitoring
+            const qualityMetrics = getAudioQualityMetrics(samples, downsampledSamples);
             
             const responsePacket = {
               event: 'media',
@@ -185,6 +189,12 @@ Be professional, empathetic, and helpful in all interactions.`,
                 type: 'data'
               }
             };
+            
+            // Log quality metrics every 10th packet to avoid spam
+            const session = activeTelephonySessions.get(sessionId);
+            if (session && session.audioChunks % 10 === 0) {
+              console.log(`🎵 [${sessionId}] Audio Quality: Input=${qualityMetrics.inputLength}, Output=${qualityMetrics.outputLength}, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
+            }
             
             ws.send(JSON.stringify(responsePacket));
           }
@@ -251,14 +261,16 @@ Be professional, empathetic, and helpful in all interactions.`,
               console.log(`🎤 [${sessionId}] Processing audio chunk ${session.audioChunks}`);
             }
             
-            // Convert Ozonetel 8kHz to OpenAI 24kHz format
+            // Convert Ozonetel 8kHz to OpenAI 24kHz format using high-quality resampling
             const pcmSamples = audioData.samples;
-            const upsampledSamples = [];
             
-            // Simple upsampling: repeat each sample 3 times for 8kHz -> 24kHz
-            for (let i = 0; i < pcmSamples.length; i++) {
-              const sample = pcmSamples[i];
-              upsampledSamples.push(sample, sample, sample);
+            // High-quality upsampling from 8kHz to 24kHz with anti-aliasing
+            const upsampledSamples = convertPCM8kTo24k_HighQuality(pcmSamples);
+            
+            // Get quality metrics for monitoring (every 25th packet to avoid spam)
+            if (session.audioChunks % 25 === 0) {
+              const qualityMetrics = getAudioQualityMetrics(pcmSamples, upsampledSamples);
+              console.log(`🎤 [${sessionId}] Caller Audio Quality: ${qualityMetrics.inputLength}→${qualityMetrics.outputLength} samples, Ratio=${qualityMetrics.conversionRatio.toFixed(3)}, RMS=${qualityMetrics.outputRMS.toFixed(1)}`);
             }
             
             // Convert to buffer
