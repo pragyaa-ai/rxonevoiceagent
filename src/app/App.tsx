@@ -6,17 +6,19 @@ import { v4 as uuidv4 } from "uuid";
 import Image from "next/image";
 
 // UI components
-import Transcript from "./components/Transcript";
 import dynamic from "next/dynamic";
-
-// Load AgentVisualizer only in the browser to avoid SSR crashes from DOM-only libraries
-const AgentVisualizer = dynamic(
-  () => import("./components/AgentVisualizer"),
-  { ssr: false }
-);
 import BottomToolbar from "./components/BottomToolbar";
 import TelephonyConfig from "./components/TelephonyConfig";
 import OzonetelTestCall from "./components/OzonetelTestCall";
+
+// Dynamically load heavy/DOM-only components on the client to prevent SSR crashes
+const AgentVisualizer = dynamic(() => import("./components/AgentVisualizer"), {
+  ssr: false,
+});
+
+const Transcript = dynamic(() => import("./components/Transcript"), {
+  ssr: false,
+});
 
 // Types
 import { SessionStatus, TelephonyProvider } from "@/app/types";
