@@ -7,7 +7,13 @@ import Image from "next/image";
 
 // UI components
 import Transcript from "./components/Transcript";
-import AgentVisualizer from "./components/AgentVisualizer";
+import dynamic from "next/dynamic";
+
+// Load AgentVisualizer only in the browser to avoid SSR crashes from DOM-only libraries
+const AgentVisualizer = dynamic(
+  () => import("./components/AgentVisualizer"),
+  { ssr: false }
+);
 import BottomToolbar from "./components/BottomToolbar";
 import TelephonyConfig from "./components/TelephonyConfig";
 import OzonetelTestCall from "./components/OzonetelTestCall";
