@@ -47,6 +47,9 @@ import { useHandleSessionHistory } from "./hooks/useHandleSessionHistory";
 function App() {
   const searchParams = useSearchParams()!;
 
+  // Track when component has mounted to prevent hydration mismatches
+  const [isMounted, setIsMounted] = useState(false);
+
   // ---------------------------------------------------------------------
   // Codec selector – lets you toggle between wide-band Opus (48 kHz)
   // and narrow-band PCMU/PCMA (8 kHz) to hear what the agent sounds like on
@@ -166,15 +169,21 @@ function App() {
 
   useHandleSessionHistory();
 
+  // Set mounted state after component mounts to prevent hydration issues
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Only perform redirects after component has mounted to prevent hydration mismatch
+    if (!isMounted) return;
+    
     let finalAgentConfig = searchParams.get("agentConfig");
     if (!finalAgentConfig || !allAgentSets[finalAgentConfig]) {
       finalAgentConfig = defaultAgentSetKey;
-      if (typeof window !== 'undefined') {
-        const url = new URL(window.location.toString());
-        url.searchParams.set("agentConfig", finalAgentConfig);
-        window.location.replace(url.toString());
-      }
+      const url = new URL(window.location.toString());
+      url.searchParams.set("agentConfig", finalAgentConfig);
+      window.location.replace(url.toString());
       return;
     }
 
@@ -183,7 +192,7 @@ function App() {
 
     setSelectedAgentName(agentKeyToUse);
     setSelectedAgentConfigSet(agents);
-  }, [searchParams]);
+  }, [searchParams, isMounted]);
 
   useEffect(() => {
     if (selectedAgentName && sessionStatus === "DISCONNECTED") {
@@ -383,7 +392,7 @@ function App() {
 
   // Because we need a new connection, refresh the page when codec changes
   const handleCodecChange = (newCodec: string) => {
-    if (typeof window !== 'undefined') {
+    if (isMounted) {
       const url = new URL(window.location.toString());
       url.searchParams.set("codec", newCodec);
       window.location.replace(url.toString());
@@ -392,7 +401,7 @@ function App() {
 
   // Transport change handler - refresh page to apply new transport
   const handleTransportChange = (newTransport: string) => {
-    if (typeof window !== 'undefined') {
+    if (isMounted) {
       const url = new URL(window.location.toString());
       url.searchParams.set("transport", newTransport);
       window.location.replace(url.toString());
@@ -401,7 +410,7 @@ function App() {
 
   // Telephony provider change handler - update URL parameter
   const handleTelephonyProviderChange = (newProvider: TelephonyProvider) => {
-    if (typeof window !== 'undefined') {
+    if (isMounted) {
       const url = new URL(window.location.toString());
       if (newProvider === 'none') {
         url.searchParams.delete("telephonyProvider");
@@ -491,7 +500,7 @@ function App() {
         <div
           className="flex items-center cursor-pointer"
           onClick={() => {
-            if (typeof window !== 'undefined') {
+            if (isMounted) {
               window.location.reload();
             }
           }}
