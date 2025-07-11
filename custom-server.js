@@ -16,7 +16,7 @@ let requestCounter = 0;
 function initializeAudioProcessor() {
   console.log('🎵 Starting Librosa Audio Processor...');
   
-  audioProcessor = spawn('venv/bin/python3', ['audio_processor.py'], {
+  audioProcessor = spawn('python3', ['audio_processor.py'], {
     stdio: ['pipe', 'pipe', 'pipe']
   });
 
@@ -250,10 +250,6 @@ app.prepare().then(() => {
         phoneNumber: phoneNumber,
         ucid: ucid,
         agentReady: false,
-        incomingAudioBuffer: [],
-        bufferFlushTimeout: null,
-        playbackBuffer: [],
-        playbackTimeout: null
       });
 
       // Handle OpenAI connection establishment
@@ -338,12 +334,17 @@ Be professional, empathetic, and helpful in all interactions.`,
             for (let i = 0; i < audioData.length; i += 2) {
               samples.push(audioData.readInt16LE(i));
             }
-            session.playbackBuffer.push(...samples);
-
-            // Start playback streaming if it hasn't started yet
-            if (!session.playbackTimeout) {
-              processPlaybackBuffer(session, ws, ucid, sessionId);
-            }
+            
+            // Downsample and send immediately, no buffering
+            const downsampledSamples = await convertPCM24kTo8k_HighQuality(samples);
+            const responsePacket = {
+                event: 'media', type: 'media', ucid: ucid,
+                data: {
+                  samples: downsampledSamples, bitsPerSample: 16, sampleRate: 8000,
+                  channelCount: 1, numberOfFrames: downsampledSamples.length, type: 'data'
+                }
+              };
+            ws.send(JSON.stringify(responsePacket));
           }
           
           // Log other important messages
@@ -400,36 +401,12 @@ Be professional, empathetic, and helpful in all interactions.`,
             return;
           }
           
-          // Process 8kHz audio packets with batching
+          // Process 8kHz audio packets (no batching)
           if (audioData.sampleRate === 8000 && session.agentReady) {
             session.audioChunks++;
             
             const pcmSamples = audioData.samples;
-            session.incomingAudioBuffer.push(...pcmSamples);
-            
-            // Clear previous timeout
-            if (session.bufferFlushTimeout) {
-              clearTimeout(session.bufferFlushTimeout);
-            }
-
-            const BATCH_THRESHOLD_SAMPLES = 80 * 5; // Process after 5 chunks (100ms)
-            const FLUSH_TIMEOUT_MS = 120; // Flush if no audio for 120ms
-
-            // If buffer is full, process immediately
-            if (session.incomingAudioBuffer.length >= BATCH_THRESHOLD_SAMPLES) {
-              const batchToProcess = [...session.incomingAudioBuffer];
-              session.incomingAudioBuffer = [];
-              await processAndSendAudioBatch(session, sessionId, batchToProcess);
-            } else {
-              // Otherwise, set a timeout to flush after a short silence
-              session.bufferFlushTimeout = setTimeout(async () => {
-                if (session.incomingAudioBuffer.length > 0) {
-                  const batchToProcess = [...session.incomingAudioBuffer];
-                  session.incomingAudioBuffer = [];
-                  await processAndSendAudioBatch(session, sessionId, batchToProcess);
-                }
-              }, FLUSH_TIMEOUT_MS);
-            }
+            await processAndSendAudioBatch(session, sessionId, pcmSamples);
           }
         }
 
@@ -437,18 +414,7 @@ Be professional, empathetic, and helpful in all interactions.`,
         if (message.event === 'stop') {
           console.log(`👋 [${sessionId}] Healthcare call ended`);
 
-          // Final flush of any remaining audio
-          if (session.bufferFlushTimeout) {
-            clearTimeout(session.bufferFlushTimeout);
-          }
-          if (session.incomingAudioBuffer.length > 0) {
-              const finalBatch = [...session.incomingAudioBuffer];
-              session.incomingAudioBuffer = [];
-              await processAndSendAudioBatch(session, sessionId, finalBatch);
-          }
-
           if (session.openaiWs) { session.openaiWs.close(); }
-          if (session.playbackTimeout) { clearTimeout(session.playbackTimeout); }
           ws.close();
         }
 
@@ -465,7 +431,6 @@ Be professional, empathetic, and helpful in all interactions.`,
         console.log(`📊 [${sessionId}] Total audio chunks processed: ${session.audioChunks}`);
         
         // Stop playback interval and close connections
-        if (session.playbackTimeout) { clearTimeout(session.playbackTimeout); }
         if (session.openaiWs) { session.openaiWs.close(); }
         
         activeTelephonySessions.delete(sessionId);
